@@ -9,6 +9,7 @@ Every implementation session records: date, branch, exact commands, results, ski
 - **Commands:**
   - `git checkout -b FIX/configurable-lan-bind` → passed.
   - `git diff --check` → passed.
+  - Server: updated the Compose bind address to `192.168.1.104`, then recreated the web service with `CALIPER_WEB_BIND=192.168.1.104 CALIPER_WEB_PORT=8080 docker compose up -d --force-recreate web` → user confirmed access from the other laptop works.
 - **Skipped / limitations:** Docker Compose startup and LAN reachability were not exercised from this environment; host firewall configuration is OS-specific.
 - **Manual prerequisites:** Set `CALIPER_WEB_BIND` to the server's LAN IPv4 address, restrict inbound web-port access to the client IPv4 address, then recreate the web service.
 
