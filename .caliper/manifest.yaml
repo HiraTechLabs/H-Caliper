@@ -1,0 +1,42 @@
+schema_version: 1
+project:
+  id: caliper
+  name: Caliper
+  kind: software_factory
+  status: foundation_proposed
+  description: Containerized software factory for project context, AI-assisted engineering workflows, verification, and controlled delivery.
+  repository: https://github.com/HiraTechLabs/caliper
+  default_branch: main
+principles_directory: .caliper/principles
+decisions_file: .caliper/DECISIONS.md
+graph_human_file: .caliper/GRAPH.md
+graph_machine_file: .caliper/graph.yaml
+technology:
+  backend_language: Python
+  database: PostgreSQL
+  ui_component_system: shadcn/ui
+  frontend_framework: undecided_record_before_implementation
+  api_framework: undecided_record_before_implementation
+  migrations: required
+  deployment: Docker
+  local_orchestration: Docker Compose unless explicitly superseded
+  model_connections: [provider_login, ollama, opencode]
+architecture:
+  style: Clean Architecture with explicit dependency boundaries
+security:
+  plaintext_secrets_in_operational_database: forbidden
+  disable_ssh_host_verification: forbidden
+  log_secret_values: forbidden
+delivery:
+  preserve_user_changes: true
+  merge_without_explicit_authorization: false
+  push_without_explicit_authorization: false
+release_gates:
+  - project_crud_and_durable_persistence
+  - credential_lifecycle_and_redaction
+  - truthful_repository_access_status
+  - repository_knowledge_sync
+  - ui_updates_without_manual_refresh
+  - persistence_after_restart
+  - PostgreSQL_integration_tests
+  - Docker_build_and_startup

@@ -1,0 +1,44 @@
+schema_version: 1
+project: caliper
+status: proposed_architecture
+nodes:
+  - {id: web-ui, label: Web UI, kind: frontend, status: planned}
+  - {id: api, label: API, kind: interface, status: planned}
+  - {id: application-services, label: Application Services, kind: application, status: planned}
+  - {id: domain, label: Domain, kind: domain, status: planned}
+  - {id: postgresql, label: PostgreSQL, kind: infrastructure, status: planned}
+  - {id: secret-store, label: Secret Store, kind: security, status: planned}
+  - {id: repository-adapter, label: Repository Adapter, kind: integration, status: planned}
+  - {id: knowledge-files, label: Project Knowledge Files, kind: knowledge, status: planned}
+  - {id: model-router, label: Model Router, kind: integration, status: planned}
+  - {id: provider-login-adapter, label: Provider Login Adapter, kind: integration, status: planned}
+  - {id: ollama-adapter, label: Ollama Adapter, kind: integration, status: planned}
+  - {id: opencode-adapter, label: OpenCode Adapter, kind: integration, status: planned}
+  - {id: task-runner, label: Task Runner, kind: application, status: planned}
+  - {id: event-stream, label: Progress Event Stream, kind: infrastructure, status: planned}
+  - {id: tests, label: Verification Suite, kind: quality, status: planned}
+  - {id: container-platform, label: Docker Platform, kind: infrastructure, status: planned}
+edges:
+  - {from: web-ui, to: api, relation: calls}
+  - {from: api, to: application-services, relation: delegates_to}
+  - {from: application-services, to: domain, relation: applies_rules}
+  - {from: application-services, to: postgresql, relation: uses_port}
+  - {from: application-services, to: secret-store, relation: uses_port}
+  - {from: application-services, to: repository-adapter, relation: uses_port}
+  - {from: repository-adapter, to: knowledge-files, relation: reads_revisioned_files}
+  - {from: application-services, to: model-router, relation: uses_port}
+  - {from: model-router, to: provider-login-adapter, relation: routes_to}
+  - {from: model-router, to: ollama-adapter, relation: routes_to}
+  - {from: model-router, to: opencode-adapter, relation: routes_to}
+  - {from: application-services, to: task-runner, relation: schedules}
+  - {from: task-runner, to: postgresql, relation: persists_state}
+  - {from: task-runner, to: event-stream, relation: publishes_progress}
+  - {from: web-ui, to: event-stream, relation: subscribes_when_supported}
+  - {from: tests, to: api, relation: verifies_contracts}
+  - {from: tests, to: postgresql, relation: verifies_persistence}
+  - {from: tests, to: secret-store, relation: verifies_secret_lifecycle}
+  - {from: tests, to: repository-adapter, relation: verifies_repository_operations}
+  - {from: tests, to: model-router, relation: verifies_model_contracts}
+  - {from: container-platform, to: api, relation: runs}
+  - {from: container-platform, to: postgresql, relation: runs}
+  - {from: container-platform, to: secret-store, relation: provides_persistent_storage}
