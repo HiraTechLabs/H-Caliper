@@ -119,3 +119,18 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed before final review.
 - **Skipped / limitations:** Docker remains unavailable locally. Compose init ordering, volume permissions, encrypted-file persistence, and key rotation need container verification. Credential API/UI and repository sync are not implemented in this foundation step.
 - **Manual prerequisites:** Back up both named secret volumes and keep the keyring backup separately protected. Never delete a keyring while encrypted records exist.
+
+## 2026-10-24 — Project credential lifecycle
+
+- **Branch:** `feature/secret-store`
+- **What:** Added project-scoped HTTPS token references and metadata, encrypted token storage, add/list/replace/disable/delete endpoints and UI, retryable cleanup/deletion state, project-deletion protection, and a bounded Git remote check. Tokens are never returned from API responses. A successful remote check reports `reachable`; public repositories may not prove token identity. SSH credentials remain deferred until a trusted host-key source is available.
+- **Commands and results:**
+  - `uv --cache-dir <writable-cache> run ruff check --fix src tests migrations`; `uv ... run ruff format src tests migrations`; `uv ... run ruff check src tests migrations` → passed.
+  - `uv --cache-dir <writable-cache> run pytest --basetemp=<writable-temp>` → 13 passed; 5 PostgreSQL integration tests skipped without a test database.
+  - `pnpm.cmd test -- --run --pool=forks --maxWorkers=1 --minWorkers=1` → 8 passed.
+  - `pnpm.cmd run build` → passed.
+  - `$env:POSTGRES_PASSWORD='compose-validation-only'; docker compose config --quiet` → passed.
+  - `$env:CALIPER_DATABASE_URL='postgresql+psycopg://test:test@localhost/caliper_test'; uv ... run alembic upgrade head --sql` → generated PostgreSQL DDL through migration 0003 without applying it.
+  - `git diff --check` → passed before final review.
+- **Skipped / limitations:** Docker engine unavailable, so the real PostgreSQL lifecycle/redaction integration test, DB migration application, live token check, and volume-backed secret deletion were not exercised. Full acceptance requires the Linux test profile.
+- **Manual prerequisites:** Add an HTTPS repository and a read-only token, then use “Check access”. Treat `reachable` as connectivity evidence, not an identity proof for public repositories.

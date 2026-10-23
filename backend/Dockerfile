@@ -1,7 +1,10 @@
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 UV_COMPILE_BYTECODE=1
-RUN pip install --no-cache-dir uv==0.11.7 \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git openssh-client ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uv==0.11.7 \
     && groupadd --system app && useradd --system --gid app --create-home app
 RUN install -d -o app -g app /var/lib/caliper/secret-data /var/lib/caliper/keyring
 WORKDIR /app

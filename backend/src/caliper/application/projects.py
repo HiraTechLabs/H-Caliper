@@ -17,6 +17,10 @@ class ProjectNotFound(LookupError):
     pass
 
 
+class ProjectHasCredentials(RuntimeError):
+    pass
+
+
 class Projects:
     def __init__(self, repository: ProjectRepository):
         self._repository = repository

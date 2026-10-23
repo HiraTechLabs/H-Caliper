@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Activity, ArrowUpRight, Boxes, Check, CircleAlert, FolderGit2, Pencil, Plus, RefreshCw, Sparkles, Trash2, X } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Card } from './components/ui/card'
+import { CredentialManager } from './components/CredentialManager'
 
 type Project = {
   id: string
@@ -34,6 +35,7 @@ function App() {
   const [editDescription, setEditDescription] = useState('')
   const [editRepositoryUrl, setEditRepositoryUrl] = useState('')
   const [editDefaultBranch, setEditDefaultBranch] = useState('main')
+  const [showCredentialManager, setShowCredentialManager] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [authReady, setAuthReady] = useState(false)
@@ -239,6 +241,7 @@ function App() {
     setDialogMode(null)
     setSelectedProject(null)
     setDialogError('')
+    setShowCredentialManager(false)
   }
 
   const projectCount = projects.length
@@ -384,6 +387,9 @@ function App() {
                   <div className="loading-card dialog-loading" role="status"><span className="loader" />Loading the latest project details…</div>
                 ) : selectedProject && dialogMode === 'details' ? (
                   <>
+                    {showCredentialManager ? (
+                      <CredentialManager projectId={selectedProject.id} onClose={() => setShowCredentialManager(false)} />
+                    ) : <>
                     <dl className="project-detail-list">
                       <div><dt>Description</dt><dd>{selectedProject.description || 'No description yet.'}</dd></div>
                       <div><dt>Repository</dt><dd>{selectedProject.repository_url ? <a href={selectedProject.repository_url} target="_blank" rel="noreferrer">{selectedProject.repository_url}<ArrowUpRight size={13} /></a> : 'Not connected'}</dd></div>
@@ -392,9 +398,11 @@ function App() {
                       <div><dt>Last updated</dt><dd>{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(selectedProject.updated_at))}</dd></div>
                     </dl>
                     <div className="dialog-actions">
+                      <Button variant="outline" size="sm" type="button" onClick={() => setShowCredentialManager(true)}>Manage credentials</Button>
                       <Button variant="outline" size="sm" type="button" onClick={() => { setDialogError(''); setDialogMode('delete') }}><Trash2 size={15} />Delete project</Button>
                       <Button variant="default" size="sm" type="button" onClick={beginEdit}><Pencil size={15} />Edit project</Button>
                     </div>
+                    </>}
                   </>
                 ) : selectedProject && dialogMode === 'edit' ? (
                   <form className="dialog-form" onSubmit={(event) => void saveProject(event)}>

@@ -1,7 +1,17 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, Index, Integer, String, Uuid
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -41,3 +51,34 @@ class AdminSessionRow(Base):
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class CredentialRow(Base):
+    __tablename__ = "credentials"
+    __table_args__ = (
+        CheckConstraint("length(trim(name)) > 0", name="ck_credentials_name_not_blank"),
+        CheckConstraint("kind IN ('https_token')", name="ck_credentials_supported_kind"),
+        CheckConstraint(
+            "status IN ('configured', 'reachable', 'validated', 'authenticated', 'failed', 'deleting')",
+            name="ck_credentials_status",
+        ),
+        UniqueConstraint("project_id", "name", name="uq_credentials_project_name"),
+        Index("ix_credentials_project", "project_id"),
+        Index("ix_credentials_cleanup", "cleanup_secret_ref"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    project_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("projects.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    username: Mapped[str] = mapped_column(String(255), nullable=False, default="x-access-token")
+    secret_ref: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    cleanup_secret_ref: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    status: Mapped[str] = mapped_column(String(40), nullable=False, default="configured")
+    deletion_pending: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

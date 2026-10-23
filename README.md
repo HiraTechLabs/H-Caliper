@@ -55,6 +55,8 @@ Prerequisites: Docker Engine and Docker Compose v2. Caliper uses a single local 
 
 The PostgreSQL data volume is named `postgres-data` and survives container recreation. Do not remove it to troubleshoot the application. Liveness (`/health/live`) reports whether the API process is running; readiness (`/health/ready`) checks PostgreSQL.
 
+Project details include credential management for HTTPS Git access tokens. The API returns only the credential name, username, and lifecycle metadata; saved token values cannot be viewed again. `Configured` means a token was safely stored, not that it works with the remote. `Reachable` means Git successfully queried the remote while sending the configured authorization header; a public remote may allow anonymous reads, so this does not always confirm the token's identity. Disable retains the encrypted secret for later re-enabling; replace saves the new token and clears its old encrypted value; delete destroys the secret. Remove credentials before deleting their project. SSH private-key credentials are not supported in this first implementation because trusted SSH host keys have not been provisioned.
+
 Encrypted secret payloads and their keyring use separate `caliper-secret-data` and `caliper-keyring` volumes. Back up both before upgrades and store the keyring backup in a separately access-controlled, encrypted location. A database backup alone cannot recover credentials; losing the keyring makes the encrypted payloads unrecoverable. Do not commit either backup or remove either volume as troubleshooting.
 
 ## Verify PostgreSQL persistence
@@ -75,4 +77,4 @@ From a Bash-compatible shell, back up the operational database with `docker comp
 
 ## Current scope
 
-The single administrator can sign in through an HttpOnly, Secure, SameSite=Strict session cookie. Password hashes and hashed, revocable session tokens are stored in PostgreSQL; project create, list, read, update, and delete endpoints require an active session. Project changes commit to PostgreSQL before the API reports success; the UI renders server-confirmed results. Credential lifecycle, repository synchronization, model adapters, durable background tasks, and the visual Principles Workspace are later vertical slices.
+The single administrator can sign in through an HttpOnly, Secure, SameSite=Strict session cookie. Password hashes and hashed, revocable session tokens are stored in PostgreSQL; project and credential endpoints require an active session. Project and credential metadata commit to PostgreSQL before the API reports success; credential payloads are stored only in the encrypted secret store. The credential UI supports add, check access, replace, disable, and delete. Repository knowledge synchronization, model adapters, durable background tasks, and the visual Principles Workspace remain later vertical slices.

@@ -134,6 +134,77 @@ describe('project workspace', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(5, '/api/projects')
   })
 
+  it('manages credential metadata while never rendering the submitted token', async () => {
+    const credential = {
+      id: '35d2a8ef-47f7-4a6a-9aa5-22eab2362990',
+      project_id: savedProject.id,
+      name: 'Read-only Git token',
+      kind: 'https_token',
+      username: 'x-access-token',
+      enabled: true,
+      status: 'configured',
+      deletion_pending: false,
+      cleanup_pending: false,
+      created_at: '2026-10-23T10:00:00Z',
+      updated_at: '2026-10-23T10:00:00Z',
+      last_checked_at: null,
+    }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ configured: true, authenticated: true }))
+      .mockResolvedValueOnce(response([savedProject]))
+      .mockResolvedValueOnce(response(savedProject))
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(response(credential, 201))
+      .mockResolvedValueOnce(response([credential]))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: /View project details/ }))
+    await screen.findByRole('dialog', { name: 'Atlas' })
+    await user.click(screen.getByRole('button', { name: 'Manage credentials' }))
+    await screen.findByText('No credentials are configured.')
+    await user.type(screen.getByLabelText('Name'), 'Read-only Git token')
+    await user.type(screen.getByLabelText('Token'), 'test-secret-value')
+    await user.click(screen.getByRole('button', { name: 'Save token' }))
+
+    expect(await screen.findByText('Credential saved securely.')).toBeInTheDocument()
+    expect(screen.getByText('Read-only Git token')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('test-secret-value')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(`/api/projects/${savedProject.id}/credentials`, expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('checks remote access and records a fresh reachable status', async () => {
+    const credential = {
+      id: '35d2a8ef-47f7-4a6a-9aa5-22eab2362990',
+      project_id: savedProject.id,
+      name: 'Read-only Git token',
+      kind: 'https_token',
+      username: 'x-access-token',
+      enabled: true,
+      status: 'reachable',
+      deletion_pending: false,
+      cleanup_pending: false,
+    }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ configured: true, authenticated: true }))
+      .mockResolvedValueOnce(response([savedProject]))
+      .mockResolvedValueOnce(response(savedProject))
+      .mockResolvedValueOnce(response([credential]))
+      .mockResolvedValueOnce(response(credential))
+      .mockResolvedValueOnce(response([credential]))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: /View project details/ }))
+    await user.click(await screen.findByRole('button', { name: 'Manage credentials' }))
+    await user.click(await screen.findByRole('button', { name: 'Check access' }))
+
+    expect(await screen.findByText('The remote is reachable. Public repositories may not confirm token identity.')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(`/api/projects/${savedProject.id}/credentials/${credential.id}/validate`, { method: 'POST' })
+  })
+
   it('keeps the project visible when the delete request fails', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(response({ configured: true, authenticated: true }))

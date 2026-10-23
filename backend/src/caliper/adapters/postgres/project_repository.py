@@ -1,9 +1,11 @@
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from caliper.adapters.postgres.models import ProjectRow
+from caliper.adapters.postgres.models import CredentialRow, ProjectRow
+from caliper.application.projects import ProjectHasCredentials
 from caliper.domain.project import Project
 
 
@@ -64,6 +66,17 @@ class SqlProjectRepository:
         row = await self._session.get(ProjectRow, project_id)
         if row is None:
             return False
+        has_credentials = await self._session.scalar(
+            select(CredentialRow.id).where(CredentialRow.project_id == project_id).limit(1)
+        )
+        if has_credentials is not None:
+            raise ProjectHasCredentials("Delete project credentials before deleting the project")
         await self._session.delete(row)
-        await self._session.commit()
+        try:
+            await self._session.commit()
+        except IntegrityError as error:
+            await self._session.rollback()
+            raise ProjectHasCredentials(
+                "Remove related credentials before deleting the project"
+            ) from error
         return True

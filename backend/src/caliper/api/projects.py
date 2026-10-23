@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Annotated
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -9,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from caliper.adapters.postgres.database import get_session
 from caliper.adapters.postgres.project_repository import SqlProjectRepository
 from caliper.api.auth import require_admin
-from caliper.application.projects import ProjectNotFound, Projects
+from caliper.application.projects import ProjectHasCredentials, ProjectNotFound, Projects
 from caliper.domain.project import Project, ProjectNameRequired
 
 router = APIRouter(prefix="/api/projects", tags=["projects"], dependencies=[Depends(require_admin)])
@@ -24,9 +25,21 @@ class ProjectInput(BaseModel):
     @field_validator("repository_url")
     @classmethod
     def valid_repository_url(cls, value: str | None) -> str | None:
-        if value is not None and not value.startswith(("https://", "ssh://", "git@")):
-            raise ValueError("Repository URL must use HTTPS or SSH")
-        return value
+        if value is None:
+            return value
+        if value.startswith("https://"):
+            parsed = urlsplit(value)
+            if parsed.hostname and parsed.username is None and parsed.password is None:
+                return value
+        elif value.startswith("ssh://"):
+            parsed = urlsplit(value)
+            if parsed.hostname and parsed.password is None:
+                return value
+        elif (
+            value.startswith("git@") and ":" in value[4:] and "/" not in value[4:].split(":", 1)[0]
+        ):
+            return value
+        raise ValueError("Repository URL must use HTTPS or SSH and contain no embedded password")
 
     @field_validator("name")
     @classmethod
@@ -94,4 +107,6 @@ async def delete_project(
         await projects.delete(project_id)
     except ProjectNotFound as error:
         raise HTTPException(status_code=404, detail="Project not found") from error
+    except ProjectHasCredentials as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)
