@@ -19,9 +19,10 @@
 | Frontend behavior (`pnpm.cmd exec vitest run src/App.test.tsx --pool=forks --maxWorkers=1 --minWorkers=1 --reporter=verbose`) | 5 passed |
 | TypeScript and Vite production build (`pnpm.cmd run build`) | Passed |
 | `git diff --check` | Passed |
-| PostgreSQL integration suite | Not run; Docker Linux engine is unavailable in the local Windows environment |
+| Backend unit and integration suite (`uv --cache-dir <writable-cache> run pytest`) | 5 passed; 3 PostgreSQL integration tests skipped because no isolated test database is configured |
+| Backend lint (`uv --cache-dir <writable-cache> run ruff check src tests migrations`) | Passed |
 | Rebuilt UI on the Linux host | Not run; branch has not been pushed or deployed |
 
 ## Acceptance boundary
 
-The projects UI now supports list, details, create, update, and delete with server-confirmed state. Real PostgreSQL verification and persistence after container restart remain unverified. Credential lifecycle, authentication/authorization, repository sync, knowledge workspace, model adapters, and durable task execution are still outstanding slices.
+The projects UI now supports list, details, create, update, and delete with server-confirmed state. The PostgreSQL-specific tests require a test database before they can verify persistence; persistence after container restart also remains unverified. Credential lifecycle, authentication/authorization, repository sync, knowledge workspace, model adapters, and durable task execution are still outstanding slices.

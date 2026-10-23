@@ -22,7 +22,8 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `pnpm.cmd exec vitest run src/App.test.tsx --pool=forks --maxWorkers=1 --minWorkers=1 --reporter=verbose` → 5 passed.
   - `pnpm.cmd run build` → passed (TypeScript check and Vite production build).
   - `git diff --check` → passed.
-- **Skipped / limitations:** These UI tests use a mocked HTTP API. PostgreSQL persistence behavior remains covered by the existing PostgreSQL integration suite and was not run in this Windows environment because Docker's Linux engine is unavailable.
+- **Backend baseline:** `uv --cache-dir C:\Users\Mohamed\.codex\visualizations\2026\10\23\01a16a05-9b43-73d2-b711-440fbac014a4\uv-cache run pytest` → 5 passed, 3 PostgreSQL integration tests skipped because no isolated PostgreSQL test database is configured. `uv --cache-dir C:\Users\Mohamed\.codex\visualizations\2026\10\23\01a16a05-9b43-73d2-b711-440fbac014a4\uv-cache run ruff check src tests migrations` → passed.
+- **Skipped / limitations:** UI tests use a mocked HTTP API. The PostgreSQL integration cases require the isolated test database and were not run in this Windows environment.
 - **Manual prerequisites:** Run the deployed Docker build on the Linux host after the branch is delivered there.
 
 ## 2026-10-23 — Docker frontend build permission
