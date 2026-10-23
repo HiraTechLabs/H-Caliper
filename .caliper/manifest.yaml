@@ -16,6 +16,7 @@ technology:
   api_framework: FastAPI
   validation: Pydantic v2
   data_access: SQLAlchemy 2.x Core
+  migration_tool: Alembic
   python_package_manager: uv
   database: PostgreSQL
   ui_component_system: shadcn/ui

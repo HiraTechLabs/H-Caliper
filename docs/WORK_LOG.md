@@ -32,3 +32,25 @@ Every implementation session records: date, branch, exact commands, results, ski
 - **Result:** Decisions recorded as Accepted. Work remains on the existing feature branch; pre-existing decision-file edits were preserved and included in the approved decision record. pnpm is available.
 - **Skipped / limitations:** Docker Compose verification is blocked until Docker Desktop's Linux engine is running. No application code or release gates have been verified yet.
 - **Manual prerequisites:** None for beginning the implementation; Docker availability may affect local integration verification.
+
+## 2026-10-23 — Projects vertical slice
+
+- **Branch:** `feature/workspace-bootstrap`
+- **What:** Added a FastAPI project API with Clean Architecture boundaries, async SQLAlchemy/psycopg persistence, Alembic migration, PostgreSQL CRUD integration tests, a React/Vite/Tailwind/shadcn-style projects workspace, server-confirmed project creation, health/readiness routes, Compose services, and setup/backup documentation. The web service binds to loopback; database credentials are injected through environment variables and are not committed.
+- **Commands and results:**
+  - `uv lock` → lockfile generated.
+  - `uv sync --frozen` → installed the locked Python dependencies, including SQLAlchemy async support.
+  - `uv run ruff format src tests migrations` → completed; final pass left all 18 Python files unchanged.
+  - `uv run ruff check src tests migrations` → passed.
+  - `uv run pytest` → 5 passed; 3 PostgreSQL integration tests skipped because no test database was available. Starlette emitted a TestClient/httpx deprecation warning.
+  - `$env:CALIPER_DATABASE_URL='postgresql+psycopg://test:test@localhost/caliper_test'; uv run alembic upgrade head --sql` → generated PostgreSQL DDL offline; migration was not applied to a server.
+  - `$env:CALIPER_DATABASE_URL='postgresql+psycopg://test:test@localhost/caliper_test'; uv run python -c "from caliper.main import app; assert app.docs_url == '/api/docs'; assert app.openapi_url == '/api/openapi.json'"` → API import and documentation routes verified.
+  - `pnpm.cmd install --lockfile-only` → frontend lockfile generated/updated.
+  - `pnpm.cmd install --frozen-lockfile` → passed; esbuild build permission recorded in `pnpm-workspace.yaml`.
+  - `pnpm.cmd test` → 2 UI behavior tests passed.
+  - `pnpm.cmd run build` → TypeScript check and Vite production build passed.
+  - `$env:POSTGRES_PASSWORD='caliper-compose-validation'; docker compose config --quiet` → passed using a dummy validation value.
+  - `git diff --check` → passed.
+- **Environment:** Docker CLI 29.7.2 and Compose v5.5.1 are installed. `docker version --format '{{.Client.Version}} / {{.Server.Version}}'` reports that the Docker Linux engine pipe is missing. No PostgreSQL server command is available.
+- **Skipped / limitations:** Real PostgreSQL CRUD, migration application, app/database startup, Docker image build, persistence after container restart, and backup/restore execution remain unverified until a Docker engine or isolated PostgreSQL test service is available. The local slice has no authentication; Compose binds the UI to `127.0.0.1` and does not publish the API port.
+- **Manual prerequisites:** Start/provide a Docker Linux engine, then run `docker compose --profile test run --build --rm integration-tests`, `docker compose up --build -d`, and the persistence/restart and backup/restore checks documented in README.
