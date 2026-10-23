@@ -2,6 +2,16 @@
 
 Every implementation session records: date, branch, exact commands, results, skipped checks, limitations, and manual prerequisites. Never claim completion based only on HTTP 200 or a green mocked test.
 
+## 2026-10-23 — Docker frontend build permission
+
+- **Branch:** `FIX/pnpm-workspace-docker-build`
+- **What:** Copy `pnpm-workspace.yaml` into the frontend build image before `pnpm install`, so pnpm 11 reads the repository's explicit `esbuild` build permission.
+- **Commands:**
+  - `git checkout -b FIX/pnpm-workspace-docker-build` → passed.
+  - `docker compose build web` → not run locally; Docker Linux engine is unavailable in this environment. The user's Linux build failed at `pnpm install` with `ERR_PNPM_IGNORED_BUILDS` for `esbuild` before this correction.
+- **Skipped / limitations:** The corrected Docker image still needs to be built on a host with a working Docker engine.
+- **Manual prerequisites:** Fetch/checkout this branch on the Linux server, then rerun `docker compose up --build -d`.
+
 ---
 
 ## 2026-10-23 — Foundation bootstrap
