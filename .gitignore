@@ -1,0 +1,50 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Node / Frontend ---
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.turbo/
+
+# --- Environment & Secrets (never commit) ---
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+secrets/
+
+# --- Databases & Runtime Data ---
+*.sqlite3
+*.db
+pgdata/
+data/
+
+# --- Docker / Infra ---
+.docker/
+
+# --- OS & Editors ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# --- Project Runtime ---
+*.log
