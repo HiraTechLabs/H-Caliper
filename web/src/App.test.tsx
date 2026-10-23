@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -62,5 +62,73 @@ describe('project workspace', () => {
     expect(screen.queryByRole('heading', { name: 'Atlas' })).not.toBeInTheDocument()
     expect(screen.queryByText('Atlas is ready in your workspace.')).not.toBeInTheDocument()
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  })
+
+  it('loads details and updates the card only after a fresh server read', async () => {
+    const updatedProject = { ...savedProject, name: 'Atlas Core', description: 'Updated workspace' }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response([savedProject]))
+      .mockResolvedValueOnce(response(savedProject))
+      .mockResolvedValueOnce(response(updatedProject))
+      .mockResolvedValueOnce(response(updatedProject))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: /View project details/ }))
+    expect(await screen.findByRole('dialog', { name: 'Atlas' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Edit project/ }))
+    const editDialog = screen.getByRole('dialog')
+    await user.clear(within(editDialog).getByLabelText(/Project name/))
+    await user.type(within(editDialog).getByLabelText(/Project name/), 'Atlas Core')
+    await user.clear(within(editDialog).getByLabelText(/Description/))
+    await user.type(within(editDialog).getByLabelText(/Description/), 'Updated workspace')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(await screen.findByRole('heading', { name: 'Atlas Core', level: 3 })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Atlas Core was updated.')
+    expect(fetchMock).toHaveBeenNthCalledWith(3, `/api/projects/${savedProject.id}`, expect.objectContaining({ method: 'PUT' }))
+    expect(fetchMock).toHaveBeenNthCalledWith(4, `/api/projects/${savedProject.id}`)
+  })
+
+  it('deletes a project only after the server confirms deletion and a fresh list omits it', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response([savedProject]))
+      .mockResolvedValueOnce(response(savedProject))
+      .mockResolvedValueOnce(response(null, 204))
+      .mockResolvedValueOnce(response([]))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: /View project details/ }))
+    await screen.findByRole('dialog', { name: 'Atlas' })
+    await user.click(screen.getByRole('button', { name: /Delete project/ }))
+    expect(screen.getByRole('alertdialog', { name: 'Delete project?' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(await screen.findByText('Your next big thing starts here.')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Atlas was deleted.')
+    expect(fetchMock).toHaveBeenNthCalledWith(3, `/api/projects/${savedProject.id}`, { method: 'DELETE' })
+    expect(fetchMock).toHaveBeenNthCalledWith(4, '/api/projects')
+  })
+
+  it('keeps the project visible when the delete request fails', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response([savedProject]))
+      .mockResolvedValueOnce(response(savedProject))
+      .mockResolvedValueOnce(response({ detail: 'Database unavailable' }, 503))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: /View project details/ }))
+    await screen.findByRole('dialog', { name: 'Atlas' })
+    await user.click(screen.getByRole('button', { name: /Delete project/ }))
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Database unavailable')
+    expect(screen.getByRole('heading', { name: 'Atlas' })).toBeInTheDocument()
+    expect(screen.queryByText('Your next big thing starts here.')).not.toBeInTheDocument()
   })
 })

@@ -13,6 +13,18 @@ Every implementation session records: date, branch, exact commands, results, ski
 - **Skipped / limitations:** Docker Compose startup and LAN reachability were not exercised from this environment; host firewall configuration is OS-specific.
 - **Manual prerequisites:** Set `CALIPER_WEB_BIND` to the server's LAN IPv4 address, restrict inbound web-port access to the client IPv4 address, then recreate the web service.
 
+## 2026-10-23 — Complete project CRUD in the workspace UI
+
+- **Branch:** `feature/project-crud-ui`
+- **What:** Added fresh project details, server-confirmed editing, and confirmed deletion to the projects UI. Updates are reflected only after a successful PUT and fresh GET; deletions are reflected only after DELETE succeeds and a fresh list omits the project. Added accessible confirmation/error states and UI behavior coverage.
+- **Commands and results:**
+  - `git checkout -b feature/project-crud-ui` → passed.
+  - `pnpm.cmd exec vitest run src/App.test.tsx --pool=forks --maxWorkers=1 --minWorkers=1 --reporter=verbose` → 5 passed.
+  - `pnpm.cmd run build` → passed (TypeScript check and Vite production build).
+  - `git diff --check` → passed.
+- **Skipped / limitations:** These UI tests use a mocked HTTP API. PostgreSQL persistence behavior remains covered by the existing PostgreSQL integration suite and was not run in this Windows environment because Docker's Linux engine is unavailable.
+- **Manual prerequisites:** Run the deployed Docker build on the Linux host after the branch is delivered there.
+
 ## 2026-10-23 — Docker frontend build permission
 
 - **Branch:** `FIX/pnpm-workspace-docker-build`

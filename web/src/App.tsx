@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Activity, ArrowUpRight, Boxes, Check, CircleAlert, FolderGit2, Plus, RefreshCw, Sparkles } from 'lucide-react'
+import { Activity, ArrowUpRight, Boxes, Check, CircleAlert, FolderGit2, Pencil, Plus, RefreshCw, Sparkles, Trash2, X } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Card } from './components/ui/card'
 
@@ -25,6 +25,15 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [connection, setConnection] = useState<'checking' | 'ready' | 'error'>('checking')
   const [saving, setSaving] = useState(false)
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [dialogMode, setDialogMode] = useState<'details' | 'edit' | 'delete' | null>(null)
+  const [dialogLoading, setDialogLoading] = useState(false)
+  const [dialogBusy, setDialogBusy] = useState(false)
+  const [dialogError, setDialogError] = useState('')
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editRepositoryUrl, setEditRepositoryUrl] = useState('')
+  const [editDefaultBranch, setEditDefaultBranch] = useState('main')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -81,6 +90,104 @@ function App() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function openProject(projectId: string) {
+    setDialogMode('details')
+    setDialogLoading(true)
+    setDialogError('')
+    setSelectedProject(null)
+    try {
+      const response = await fetch(`/api/projects/${projectId}`)
+      if (!response.ok) throw new Error('Could not load the latest project details. Try again.')
+      setSelectedProject(await response.json() as Project)
+    } catch (cause) {
+      setDialogError(cause instanceof Error ? cause.message : 'Could not load project details.')
+    } finally {
+      setDialogLoading(false)
+    }
+  }
+
+  function beginEdit() {
+    if (!selectedProject) return
+    setEditName(selectedProject.name)
+    setEditDescription(selectedProject.description)
+    setEditRepositoryUrl(selectedProject.repository_url ?? '')
+    setEditDefaultBranch(selectedProject.default_branch)
+    setDialogError('')
+    setDialogMode('edit')
+  }
+
+  async function saveProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedProject) return
+    setDialogBusy(true)
+    setDialogError('')
+    const payload: ProjectInput = {
+      name: editName.trim(),
+      description: editDescription.trim(),
+      repository_url: editRepositoryUrl.trim() || null,
+      default_branch: editDefaultBranch.trim(),
+    }
+    try {
+      const response = await fetch(`/api/projects/${selectedProject.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        const result = await response.json().catch(() => null) as { detail?: string | { msg?: string }[] } | null
+        const detail = Array.isArray(result?.detail) ? result.detail[0]?.msg : result?.detail
+        throw new Error(typeof detail === 'string' ? detail : 'Project was not updated. Please try again.')
+      }
+
+      const freshResponse = await fetch(`/api/projects/${selectedProject.id}`)
+      if (!freshResponse.ok) throw new Error('The update was saved, but a fresh read failed. Refresh the workspace before continuing.')
+      const freshProject = await freshResponse.json() as Project
+      setProjects((current) => current.map((project) => project.id === freshProject.id ? freshProject : project))
+      setSelectedProject(freshProject)
+      setNotice(`${freshProject.name} was updated.`)
+      setDialogMode('details')
+    } catch (cause) {
+      setDialogError(cause instanceof Error ? cause.message : 'Project was not updated. Please try again.')
+    } finally {
+      setDialogBusy(false)
+    }
+  }
+
+  async function deleteProject() {
+    if (!selectedProject) return
+    setDialogBusy(true)
+    setDialogError('')
+    try {
+      const response = await fetch(`/api/projects/${selectedProject.id}`, { method: 'DELETE' })
+      if (!response.ok) {
+        const result = await response.json().catch(() => null) as { detail?: string } | null
+        throw new Error(result?.detail ?? 'Project was not deleted. Please try again.')
+      }
+
+      const freshResponse = await fetch('/api/projects')
+      if (!freshResponse.ok) throw new Error('The delete was accepted, but a fresh project list failed. Refresh before continuing.')
+      const freshProjects = await freshResponse.json() as Project[]
+      if (freshProjects.some((project) => project.id === selectedProject.id)) {
+        throw new Error('The project still appears in the fresh list. It was not removed from the workspace.')
+      }
+      setProjects(freshProjects)
+      setNotice(`${selectedProject.name} was deleted.`)
+      setSelectedProject(null)
+      setDialogMode(null)
+    } catch (cause) {
+      setDialogError(cause instanceof Error ? cause.message : 'Project was not deleted. Please try again.')
+    } finally {
+      setDialogBusy(false)
+    }
+  }
+
+  function closeDialog() {
+    if (dialogBusy || dialogLoading) return
+    setDialogMode(null)
+    setSelectedProject(null)
+    setDialogError('')
   }
 
   const projectCount = projects.length
@@ -159,6 +266,7 @@ function App() {
                           {project.repository_url && <a href={project.repository_url} target="_blank" rel="noreferrer">Repository <ArrowUpRight size={12} /></a>}
                           <span>Added {new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(project.created_at))}</span>
                         </div>
+                        <button className="project-details-button" type="button" onClick={() => void openProject(project.id)}>View project details <ArrowUpRight size={13} /></button>
                       </div>
                     </Card>
                   ))}
@@ -183,6 +291,68 @@ function App() {
               </form>
             </aside>
           </section>
+
+          {dialogMode && (
+            <div className="dialog-backdrop">
+              <section
+                className="project-dialog"
+                role={dialogMode === 'delete' ? 'alertdialog' : 'dialog'}
+                aria-modal="true"
+                aria-labelledby="project-dialog-title"
+                aria-busy={dialogBusy || dialogLoading}
+              >
+                <div className="dialog-heading">
+                  <div>
+                    <span className="section-kicker">PROJECT WORKSPACE</span>
+                    <h2 id="project-dialog-title">{dialogMode === 'delete' ? 'Delete project?' : dialogMode === 'edit' ? 'Edit project' : selectedProject?.name ?? 'Project details'}</h2>
+                  </div>
+                  <button className="dialog-close" type="button" aria-label="Close project dialog" onClick={closeDialog} disabled={dialogBusy || dialogLoading}><X size={18} /></button>
+                </div>
+
+                {dialogError && <div className="alert alert-error" role="alert"><CircleAlert size={17} /><span>{dialogError}</span></div>}
+                {dialogLoading ? (
+                  <div className="loading-card dialog-loading" role="status"><span className="loader" />Loading the latest project details…</div>
+                ) : selectedProject && dialogMode === 'details' ? (
+                  <>
+                    <dl className="project-detail-list">
+                      <div><dt>Description</dt><dd>{selectedProject.description || 'No description yet.'}</dd></div>
+                      <div><dt>Repository</dt><dd>{selectedProject.repository_url ? <a href={selectedProject.repository_url} target="_blank" rel="noreferrer">{selectedProject.repository_url}<ArrowUpRight size={13} /></a> : 'Not connected'}</dd></div>
+                      <div><dt>Default branch</dt><dd>{selectedProject.default_branch}</dd></div>
+                      <div><dt>Created</dt><dd>{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(selectedProject.created_at))}</dd></div>
+                      <div><dt>Last updated</dt><dd>{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(selectedProject.updated_at))}</dd></div>
+                    </dl>
+                    <div className="dialog-actions">
+                      <Button variant="outline" size="sm" type="button" onClick={() => { setDialogError(''); setDialogMode('delete') }}><Trash2 size={15} />Delete project</Button>
+                      <Button variant="default" size="sm" type="button" onClick={beginEdit}><Pencil size={15} />Edit project</Button>
+                    </div>
+                  </>
+                ) : selectedProject && dialogMode === 'edit' ? (
+                  <form className="dialog-form" onSubmit={(event) => void saveProject(event)}>
+                    <label htmlFor="edit-project-name">Project name <span className="required-mark">*</span></label>
+                    <input id="edit-project-name" value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={120} required />
+                    <label htmlFor="edit-project-description">Description <span className="optional-mark">OPTIONAL</span></label>
+                    <textarea id="edit-project-description" value={editDescription} onChange={(event) => setEditDescription(event.target.value)} rows={3} maxLength={2000} />
+                    <label htmlFor="edit-project-repository">Repository URL <span className="optional-mark">OPTIONAL</span></label>
+                    <input id="edit-project-repository" type="url" value={editRepositoryUrl} onChange={(event) => setEditRepositoryUrl(event.target.value)} />
+                    <label htmlFor="edit-project-branch">Default branch</label>
+                    <input id="edit-project-branch" value={editDefaultBranch} onChange={(event) => setEditDefaultBranch(event.target.value)} maxLength={255} required />
+                    <div className="dialog-actions">
+                      <Button variant="outline" size="sm" type="button" onClick={() => { setDialogError(''); setDialogMode('details') }} disabled={dialogBusy}>Cancel</Button>
+                      <Button variant="default" size="sm" type="submit" disabled={dialogBusy || !editName.trim() || !editDefaultBranch.trim()}>{dialogBusy ? 'Saving…' : 'Save changes'}</Button>
+                    </div>
+                  </form>
+                ) : selectedProject && dialogMode === 'delete' ? (
+                  <div className="delete-confirmation">
+                    <p>Delete <strong>{selectedProject.name}</strong>? This removes the project from the workspace and cannot be undone.</p>
+                    <div className="dialog-actions">
+                      <Button variant="outline" size="sm" type="button" onClick={() => { setDialogError(''); setDialogMode('details') }} disabled={dialogBusy}>Keep project</Button>
+                      <Button variant="default" className="bg-red-700 text-white hover:bg-red-800" size="sm" type="button" onClick={() => void deleteProject()} disabled={dialogBusy}>{dialogBusy ? 'Deleting…' : 'Delete permanently'}</Button>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            </div>
+          )}
 
           <footer className="page-footer"><span>CALIPER <span className="footer-dot">·</span> BUILT FOR THOUGHTFUL WORK</span><span>Project workspace <span aria-hidden="true">·</span> v0.1</span></footer>
         </div>
