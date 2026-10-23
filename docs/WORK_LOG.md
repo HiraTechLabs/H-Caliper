@@ -2,6 +2,16 @@
 
 Every implementation session records: date, branch, exact commands, results, skipped checks, limitations, and manual prerequisites. Never claim completion based only on HTTP 200 or a green mocked test.
 
+## 2026-10-23 — Configurable private-LAN web binding
+
+- **Branch:** `FIX/configurable-lan-bind`
+- **What:** Made the web bind address configurable while preserving loopback as the default. Documented binding to a specific server LAN address with firewall access restricted to the authorized client, since the current app has no user authentication.
+- **Commands:**
+  - `git checkout -b FIX/configurable-lan-bind` → passed.
+  - `git diff --check` → passed.
+- **Skipped / limitations:** Docker Compose startup and LAN reachability were not exercised from this environment; host firewall configuration is OS-specific.
+- **Manual prerequisites:** Set `CALIPER_WEB_BIND` to the server's LAN IPv4 address, restrict inbound web-port access to the client IPv4 address, then recreate the web service.
+
 ## 2026-10-23 — Docker frontend build permission
 
 - **Branch:** `FIX/pnpm-workspace-docker-build`

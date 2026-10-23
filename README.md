@@ -4,7 +4,7 @@ Caliper is a self-hosted software factory for project context, AI-assisted engin
 
 ## Run locally with Docker Compose
 
-Prerequisites: Docker Desktop with its Linux engine running and Docker Compose v2. This initial unauthenticated slice binds to localhost only; keep it there until an authenticated access layer is delivered.
+Prerequisites: Docker Engine and Docker Compose v2. The initial slice has no user authentication and binds to localhost by default. To access it from a private LAN, bind to the server's specific LAN IPv4 address and restrict the host firewall to the authorized client address. Do not bind to `0.0.0.0` or expose the app to an untrusted network.
 
 1. Set a local database password in your shell. Do not commit it or put it in source control.
 
@@ -18,7 +18,17 @@ Prerequisites: Docker Desktop with its Linux engine running and Docker Compose v
    docker compose up --build -d
    ```
 
-3. Open [http://localhost:8080](http://localhost:8080). The API is available through the UI gateway at `/api`; OpenAPI docs are at [http://localhost:8080/api/docs](http://localhost:8080/api/docs).
+   For LAN access, set `CALIPER_WEB_BIND` to the server's LAN IPv4 address and add a host firewall rule allowing the web port only from the authorized client's IPv4 address. For example, replace the sample address and port as needed:
+
+   ```bash
+   export CALIPER_WEB_BIND=192.168.1.20
+   export CALIPER_WEB_PORT=8080
+   docker compose up --build -d
+   ```
+
+   The firewall command depends on the host firewall in use. Do not start with the LAN binding until that source-restricted rule is in place. Keep the same environment values when recreating the Compose services.
+
+3. Open `http://localhost:8080` on the server, or `http://<server-LAN-IPv4>:8080` from the authorized LAN client. The API is available through the UI gateway at `/api`; OpenAPI docs are at `/api/docs`.
 
 The PostgreSQL data volume is named `postgres-data` and survives container recreation. Do not remove it to troubleshoot the application. Liveness (`/health/live`) reports whether the API process is running; readiness (`/health/ready`) checks PostgreSQL.
 
