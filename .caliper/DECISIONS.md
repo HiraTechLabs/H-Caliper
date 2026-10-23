@@ -106,3 +106,10 @@ The project owner approved the full proposed architecture and first-slice scope 
 - **Reason:** The owner selected one administrator account. The app handles repository credentials and operational controls, so project APIs require authentication and browser credentials must not traverse the LAN in plaintext.
 - **Alternatives considered:** Multiple user accounts (deferred); storing passwords or bearer tokens in environment variables or operational tables (rejected).
 - **Consequences:** Initial setup requires `docker compose exec api python -m caliper.cli admin init`, and each client device must trust the local Caddy root certificate. Resetting the administrator password revokes all existing sessions.
+
+## D-018 — Initial encrypted secret store
+- **Status:** Accepted
+- **Decision:** Store secret payloads as individual Fernet-encrypted files in a dedicated persistent Docker volume. Store the Fernet keyring in a separate persistent Docker volume, initialize it only when no encrypted records exist, and fail closed if it is missing after secrets have been written. PostgreSQL holds only credential references and non-secret lifecycle metadata. Rotate by persisting a new-plus-old keyring before rewriting ciphertext, then retire old keys only after all records are re-encrypted.
+- **Reason:** Implements the accepted secret-store boundary without placing plaintext credentials in PostgreSQL or source control, and supports recoverable rotation with authenticated Fernet encryption.
+- **Alternatives considered:** Plaintext environment/database storage (rejected); external cloud KMS (deferred because the current target is a self-hosted LAN server).
+- **Consequences:** The encrypted data volume and keyring volume must both be backed up and restored. Store backups separately with the keyring protected more strictly. Losing the keyring makes ciphertext unrecoverable. A key rotation interrupted mid-run leaves both keys available and can be retried.

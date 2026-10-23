@@ -3,6 +3,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 UV_COMPILE_BYTECODE=1
 RUN pip install --no-cache-dir uv==0.11.7 \
     && groupadd --system app && useradd --system --gid app --create-home app
+RUN install -d -o app -g app /var/lib/caliper/secret-data /var/lib/caliper/keyring
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project

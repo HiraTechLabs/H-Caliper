@@ -1,6 +1,8 @@
 import argparse
 import asyncio
 import getpass
+import os
+from pathlib import Path
 
 
 def read_new_password() -> str:
@@ -36,8 +38,27 @@ def main() -> None:
     actions = admin.add_subparsers(dest="action", required=True)
     actions.add_parser("init")
     actions.add_parser("reset-password")
+    secrets = commands.add_parser("secrets")
+    secret_actions = secrets.add_subparsers(dest="action", required=True)
+    secret_actions.add_parser("init-keyring")
+    secret_actions.add_parser("rotate-key")
     args = parser.parse_args()
-    asyncio.run(configure_admin(reset=args.action == "reset-password"))
+    if args.resource == "admin":
+        asyncio.run(configure_admin(reset=args.action == "reset-password"))
+        return
+
+    from caliper.adapters.secret_store.fernet_store import FernetFileSecretStore
+
+    store = FernetFileSecretStore(
+        Path(os.environ.get("CALIPER_SECRET_DATA_DIR", "/var/lib/caliper/secret-data")),
+        Path(os.environ.get("CALIPER_SECRET_KEYRING", "/var/lib/caliper/keyring/keyring.json")),
+    )
+    if args.action == "init-keyring":
+        store.initialize_keyring()
+        print("Secret keyring is initialized.")
+    else:
+        rotated = store.rotate_key()
+        print(f"Key rotation completed for {rotated} secret records.")
 
 
 if __name__ == "__main__":

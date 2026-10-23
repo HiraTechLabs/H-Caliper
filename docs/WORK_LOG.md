@@ -105,3 +105,17 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed before final review.
 - **Skipped / limitations:** Docker Desktop's Linux engine is unavailable (`docker info` cannot connect to `dockerDesktopLinuxEngine`). Therefore PostgreSQL migration application, live login/session revocation, container image build, Caddy certificate issuance, browser trust, and LAN end-to-end access were not verified. PostgreSQL integration cases remain required before claiming this slice fully verified.
 - **Manual prerequisites:** Start Docker on the target Linux server, rebuild Compose, initialize the administrator interactively, export Caddy's local root certificate to each Windows client, then complete the PostgreSQL integration and HTTPS login checks in README. No push or deployment was performed.
+
+## 2026-10-24 — Encrypted secret-store foundation
+
+- **Branch:** `feature/secret-store` (based on the committed `feature/single-admin-auth` slice)
+- **What:** Accepted D-018, added an application secret-store port and Fernet file adapter, separate encrypted-data/keyring Compose volumes, first-run fail-closed keyring initialization, interrupted-rotation-safe key rollover, and a key rotation CLI command. Documented key-loss, backup, recovery, and rotation behavior.
+- **Commands and results:**
+  - `uv --cache-dir <writable-cache> add "cryptography>=44,<51"` → installed and locked `cryptography==50.0.2`.
+  - `uv --cache-dir <writable-cache> run ruff check src tests migrations` → passed.
+  - `uv --cache-dir <writable-cache> run pytest --basetemp=<writable-temp>` → 10 passed, 4 PostgreSQL integration tests skipped because no test database is configured.
+  - Secret-store tests cover encrypted bytes, restart reads, destruction, key rotation, and fail-closed behavior after key loss.
+  - `$env:POSTGRES_PASSWORD='compose-validation-only'; docker compose config --quiet` → passed.
+  - `git diff --check` → passed before final review.
+- **Skipped / limitations:** Docker remains unavailable locally. Compose init ordering, volume permissions, encrypted-file persistence, and key rotation need container verification. Credential API/UI and repository sync are not implemented in this foundation step.
+- **Manual prerequisites:** Back up both named secret volumes and keep the keyring backup separately protected. Never delete a keyring while encrypted records exist.

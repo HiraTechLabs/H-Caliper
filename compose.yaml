@@ -23,9 +23,16 @@ services:
       CALIPER_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your environment}
       CALIPER_DB_HOST: db
       CALIPER_DB_NAME: ${POSTGRES_DB:-caliper}
+      CALIPER_SECRET_DATA_DIR: /var/lib/caliper/secret-data
+      CALIPER_SECRET_KEYRING: /var/lib/caliper/keyring/keyring.json
+    volumes:
+      - caliper-secret-data:/var/lib/caliper/secret-data
+      - caliper-keyring:/var/lib/caliper/keyring
     depends_on:
       db:
         condition: service_healthy
+      secret-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]
       interval: 10s
@@ -33,6 +40,18 @@ services:
       retries: 5
       start_period: 15s
     restart: unless-stopped
+
+  secret-init:
+    build:
+      context: ./backend
+    command: ["python", "-m", "caliper.cli", "secrets", "init-keyring"]
+    environment:
+      CALIPER_SECRET_DATA_DIR: /var/lib/caliper/secret-data
+      CALIPER_SECRET_KEYRING: /var/lib/caliper/keyring/keyring.json
+    volumes:
+      - caliper-secret-data:/var/lib/caliper/secret-data
+      - caliper-keyring:/var/lib/caliper/keyring
+    restart: "no"
 
   web:
     build:
@@ -98,3 +117,5 @@ volumes:
   postgres-data:
   caddy-data:
   caddy-config:
+  caliper-secret-data:
+  caliper-keyring:

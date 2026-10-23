@@ -37,6 +37,8 @@ Prerequisites: Docker Engine and Docker Compose v2. Caliper uses a single local 
 
    To rotate the password later, use `docker compose exec api python -m caliper.cli admin reset-password`; this revokes all active browser sessions.
 
+   The `secret-init` service creates the encryption keyring automatically on first start only while the encrypted secret volume is empty. A missing keyring after secrets exist stops API startup rather than generating a replacement key. Rotate keys with `docker compose exec api python -m caliper.cli secrets rotate-key`; this rewrites stored ciphertext before retiring the old key.
+
 4. Export Caddy's local root certificate on the server, then transfer it to the client through a trusted channel:
 
    ```bash
@@ -52,6 +54,8 @@ Prerequisites: Docker Engine and Docker Compose v2. Caliper uses a single local 
    Open `https://<server-LAN-IPv4>:8443` on the client (or `https://localhost:8443` on the server). The API is available through the HTTPS gateway at `/api`; OpenAPI docs are at `/api/docs`. A private CA certificate must be trusted on each client device before the browser accepts the connection.
 
 The PostgreSQL data volume is named `postgres-data` and survives container recreation. Do not remove it to troubleshoot the application. Liveness (`/health/live`) reports whether the API process is running; readiness (`/health/ready`) checks PostgreSQL.
+
+Encrypted secret payloads and their keyring use separate `caliper-secret-data` and `caliper-keyring` volumes. Back up both before upgrades and store the keyring backup in a separately access-controlled, encrypted location. A database backup alone cannot recover credentials; losing the keyring makes the encrypted payloads unrecoverable. Do not commit either backup or remove either volume as troubleshooting.
 
 ## Verify PostgreSQL persistence
 

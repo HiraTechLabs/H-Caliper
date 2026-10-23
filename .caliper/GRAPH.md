@@ -8,7 +8,7 @@
 - **application-services:** use cases, orchestration, transaction policy, and result mapping.
 - **domain:** framework-independent business entities and invariants.
 - **postgresql:** authoritative operational data.
-- **secret-store:** protected storage for tokens, private keys, and other secret values.
+- **secret-store:** Fernet-encrypted secret files with a separately persisted keyring; PostgreSQL stores references only.
 - **repository-adapter:** Git access, branch/revision inspection, and knowledge synchronization.
 - **knowledge-files:** version-controlled manifest, principles, decisions, and graph.
 - **model-router:** shared internal model invocation contract.

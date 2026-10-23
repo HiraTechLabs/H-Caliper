@@ -5,6 +5,7 @@ description = "Caliper project context and software-factory API"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.14,<2",
+  "cryptography>=44,<51",
   "fastapi>=0.115,<1",
   "psycopg[binary]>=3.2,<4",
   "pwdlib[argon2]>=0.3.1",
