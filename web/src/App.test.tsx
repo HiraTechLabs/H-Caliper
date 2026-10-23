@@ -27,8 +27,26 @@ afterEach(() => {
 })
 
 describe('project workspace', () => {
+  it('requires administrator sign-in before loading projects', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ configured: true, authenticated: false }))
+      .mockResolvedValueOnce(response({ authenticated: true }))
+      .mockResolvedValueOnce(response([]))
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.type(await screen.findByLabelText('Administrator password'), 'example-password')
+    await user.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    expect(await screen.findByText('Your next big thing starts here.')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/auth/session', expect.objectContaining({ method: 'POST' }))
+    expect(fetchMock).toHaveBeenNthCalledWith(3, '/api/projects')
+  })
+
   it('renders the server-confirmed create result without reloading the list', async () => {
     const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ configured: true, authenticated: true }))
       .mockResolvedValueOnce(response([]))
       .mockResolvedValueOnce(response(savedProject, 201))
     vi.stubGlobal('fetch', fetchMock)
@@ -42,12 +60,13 @@ describe('project workspace', () => {
 
     expect(await screen.findByRole('status')).toHaveTextContent('Atlas is ready in your workspace.')
     expect(screen.getByRole('heading', { name: 'Atlas' })).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(fetchMock).toHaveBeenLastCalledWith('/api/projects', expect.objectContaining({ method: 'POST' }))
   })
 
   it('does not claim success or add a project when the server rejects the create', async () => {
     const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ configured: true, authenticated: true }))
       .mockResolvedValueOnce(response([]))
       .mockResolvedValueOnce(response({ detail: 'Database unavailable' }, 503))
     vi.stubGlobal('fetch', fetchMock)
@@ -61,12 +80,13 @@ describe('project workspace', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Database unavailable')
     expect(screen.queryByRole('heading', { name: 'Atlas' })).not.toBeInTheDocument()
     expect(screen.queryByText('Atlas is ready in your workspace.')).not.toBeInTheDocument()
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
   })
 
   it('loads details and updates the card only after a fresh server read', async () => {
     const updatedProject = { ...savedProject, name: 'Atlas Core', description: 'Updated workspace' }
     const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ configured: true, authenticated: true }))
       .mockResolvedValueOnce(response([savedProject]))
       .mockResolvedValueOnce(response(savedProject))
       .mockResolvedValueOnce(response(updatedProject))
@@ -87,12 +107,13 @@ describe('project workspace', () => {
 
     expect(await screen.findByRole('heading', { name: 'Atlas Core', level: 3 })).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Atlas Core was updated.')
-    expect(fetchMock).toHaveBeenNthCalledWith(3, `/api/projects/${savedProject.id}`, expect.objectContaining({ method: 'PUT' }))
-    expect(fetchMock).toHaveBeenNthCalledWith(4, `/api/projects/${savedProject.id}`)
+    expect(fetchMock).toHaveBeenNthCalledWith(4, `/api/projects/${savedProject.id}`, expect.objectContaining({ method: 'PUT' }))
+    expect(fetchMock).toHaveBeenNthCalledWith(5, `/api/projects/${savedProject.id}`)
   })
 
   it('deletes a project only after the server confirms deletion and a fresh list omits it', async () => {
     const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ configured: true, authenticated: true }))
       .mockResolvedValueOnce(response([savedProject]))
       .mockResolvedValueOnce(response(savedProject))
       .mockResolvedValueOnce(response(null, 204))
@@ -109,12 +130,13 @@ describe('project workspace', () => {
 
     expect(await screen.findByText('Your next big thing starts here.')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Atlas was deleted.')
-    expect(fetchMock).toHaveBeenNthCalledWith(3, `/api/projects/${savedProject.id}`, { method: 'DELETE' })
-    expect(fetchMock).toHaveBeenNthCalledWith(4, '/api/projects')
+    expect(fetchMock).toHaveBeenNthCalledWith(4, `/api/projects/${savedProject.id}`, { method: 'DELETE' })
+    expect(fetchMock).toHaveBeenNthCalledWith(5, '/api/projects')
   })
 
   it('keeps the project visible when the delete request fails', async () => {
     const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ configured: true, authenticated: true }))
       .mockResolvedValueOnce(response([savedProject]))
       .mockResolvedValueOnce(response(savedProject))
       .mockResolvedValueOnce(response({ detail: 'Database unavailable' }, 503))

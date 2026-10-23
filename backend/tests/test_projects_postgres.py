@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 import pytest
@@ -27,9 +28,22 @@ def client():
     config = Config("alembic.ini")
     command.upgrade(config, "head")
 
+    from caliper.adapters.postgres.auth_repository import set_admin_password
+    from caliper.adapters.postgres.database import SessionLocal, engine
+    from caliper.application.auth import hash_password
     from caliper.main import app
 
-    with TestClient(app) as test_client:
+    async def configure_test_admin():
+        async with SessionLocal() as session:
+            await set_admin_password(session, hash_password("integration-test-password"))
+        await engine.dispose()
+
+    asyncio.run(configure_test_admin())
+    with TestClient(app, base_url="https://testserver") as test_client:
+        login = test_client.post(
+            "/api/auth/session", json={"password": "integration-test-password"}
+        )
+        assert login.status_code == 200
         yield test_client
 
 
@@ -92,3 +106,15 @@ def test_project_validation_and_missing_delete(client: TestClient):
 def test_liveness_and_postgres_readiness(client: TestClient):
     assert client.get("/health/live").json() == {"status": "live"}
     assert client.get("/health/ready").json() == {"status": "ready"}
+
+
+def test_project_routes_require_admin_and_logout_revokes_session(client: TestClient):
+    client.delete("/api/auth/session")
+    assert client.get("/api/projects").status_code == 401
+    login = client.post("/api/auth/session", json={"password": "integration-test-password"})
+    assert login.status_code == 200
+    assert "httponly" in login.headers["set-cookie"].lower()
+    assert "secure" in login.headers["set-cookie"].lower()
+    assert client.get("/api/projects").status_code == 200
+    client.delete("/api/auth/session")
+    assert client.get("/api/projects").status_code == 401

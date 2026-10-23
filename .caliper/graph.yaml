@@ -18,6 +18,8 @@ nodes:
   - {id: event-stream, label: Progress Event Stream, kind: infrastructure, status: planned}
   - {id: tests, label: Verification Suite, kind: quality, status: planned}
   - {id: container-platform, label: Docker Platform, kind: infrastructure, status: planned}
+  - {id: tls-gateway, label: HTTPS Gateway, kind: security, status: planned}
+  - {id: administrator-auth, label: Administrator Authentication, kind: security, status: planned}
 edges:
   - {from: web-ui, to: api, relation: calls}
   - {from: api, to: application-services, relation: delegates_to}
@@ -42,3 +44,7 @@ edges:
   - {from: container-platform, to: api, relation: runs}
   - {from: container-platform, to: postgresql, relation: runs}
   - {from: container-platform, to: secret-store, relation: provides_persistent_storage}
+  - {from: tls-gateway, to: web-ui, relation: proxies_https}
+  - {from: tls-gateway, to: container-platform, relation: persists_internal_ca}
+  - {from: api, to: administrator-auth, relation: requires_for_projects}
+  - {from: administrator-auth, to: postgresql, relation: persists_hashes_and_sessions}

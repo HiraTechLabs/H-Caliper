@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from caliper.adapters.postgres.database import engine
+from caliper.api.auth import router as auth_router
 from caliper.api.projects import router as projects_router
 
 
@@ -22,6 +23,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(projects_router)
+app.include_router(auth_router)
 
 
 @app.get("/health/live", tags=["health"])

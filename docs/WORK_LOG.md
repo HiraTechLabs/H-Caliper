@@ -88,3 +88,20 @@ Every implementation session records: date, branch, exact commands, results, ski
 - **Environment:** Docker CLI 29.7.2 and Compose v5.5.1 are installed. `docker version --format '{{.Client.Version}} / {{.Server.Version}}'` reports that the Docker Linux engine pipe is missing. No PostgreSQL server command is available.
 - **Skipped / limitations:** Real PostgreSQL CRUD, migration application, app/database startup, Docker image build, persistence after container restart, and backup/restore execution remain unverified until a Docker engine or isolated PostgreSQL test service is available. The local slice has no authentication; Compose binds the UI to `127.0.0.1` and does not publish the API port.
 - **Manual prerequisites:** Start/provide a Docker Linux engine, then run `docker compose --profile test run --build --rm integration-tests`, `docker compose up --build -d`, and the persistence/restart and backup/restore checks documented in README.
+
+## 2026-10-24 — Single administrator authentication and HTTPS gateway
+
+- **Branch:** `feature/single-admin-auth` (based on `feature/project-crud-ui`)
+- **What:** Recorded owner-approved D-017. Added an interactive administrator bootstrap/password-rotation CLI, Argon2id hashes, PostgreSQL-backed revocable session hashes, protected project routes, Secure/HttpOnly/SameSite=Strict cookies, a sign-in screen, and a Caddy internal-CA HTTPS gateway. Documented LAN access and Windows certificate trust. Graph responsibilities and edges were updated; node statuses remain planned until the full release gates are verified.
+- **Commands and results:**
+  - `uv --cache-dir <writable-cache> add "pwdlib[argon2]"` → added pwdlib 0.3.1 and locked Argon2 dependencies.
+  - `pnpm.cmd test -- --run --pool=forks --maxWorkers=1 --minWorkers=1` → passed, 6 UI tests.
+  - `pnpm.cmd run build` → passed (TypeScript and Vite production build).
+  - `uv --cache-dir <writable-cache> run pytest` → 6 passed, 4 PostgreSQL integration tests skipped because no test database was configured.
+  - `uv --cache-dir <writable-cache> run ruff check --fix src tests migrations`; `uv ... run ruff format src tests migrations`; `uv ... run ruff check src tests migrations` → formatting and lint passed.
+  - `$env:CALIPER_DATABASE_URL='postgresql+psycopg://test:test@localhost/caliper_test'; uv --cache-dir <writable-cache> run alembic upgrade head --sql` → generated PostgreSQL DDL for both migrations without connecting to or changing a database.
+  - `uv --cache-dir <writable-cache> run python -m caliper.cli --help` → CLI help works without database configuration.
+  - `$env:POSTGRES_PASSWORD='compose-validation-only'; docker compose config --quiet` → passed.
+  - `git diff --check` → passed before final review.
+- **Skipped / limitations:** Docker Desktop's Linux engine is unavailable (`docker info` cannot connect to `dockerDesktopLinuxEngine`). Therefore PostgreSQL migration application, live login/session revocation, container image build, Caddy certificate issuance, browser trust, and LAN end-to-end access were not verified. PostgreSQL integration cases remain required before claiming this slice fully verified.
+- **Manual prerequisites:** Start Docker on the target Linux server, rebuild Compose, initialize the administrator interactively, export Caddy's local root certificate to each Windows client, then complete the PostgreSQL integration and HTTPS login checks in README. No push or deployment was performed.

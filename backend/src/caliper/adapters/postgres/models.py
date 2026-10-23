@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, Index, String, Uuid
+from sqlalchemy import CheckConstraint, DateTime, Index, Integer, String, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -23,3 +23,21 @@ class ProjectRow(Base):
     default_branch: Mapped[str] = mapped_column(String(255), nullable=False, default="main")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AdminCredentialRow(Base):
+    __tablename__ = "admin_credential"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_admin_credential_singleton"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    password_hash: Mapped[str] = mapped_column(String(512), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AdminSessionRow(Base):
+    __tablename__ = "admin_sessions"
+    __table_args__ = (Index("ix_admin_sessions_expires_at", "expires_at"),)
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

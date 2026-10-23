@@ -36,6 +36,12 @@ function App() {
   const [editDefaultBranch, setEditDefaultBranch] = useState('main')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [authReady, setAuthReady] = useState(false)
+  const [adminConfigured, setAdminConfigured] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
+  const [password, setPassword] = useState('')
+  const [authError, setAuthError] = useState('')
+  const [authBusy, setAuthBusy] = useState(false)
 
   const loadProjects = useCallback(async () => {
     setLoading(true)
@@ -54,7 +60,52 @@ function App() {
     }
   }, [])
 
-  useEffect(() => { void loadProjects() }, [loadProjects])
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch('/api/auth/session')
+        if (!response.ok) throw new Error('Could not check the administrator session.')
+        const state = await response.json() as { configured: boolean; authenticated: boolean }
+        setAdminConfigured(state.configured)
+        setAuthenticated(state.authenticated)
+        if (state.authenticated) await loadProjects()
+      } catch {
+        setConnection('error')
+        setError('Caliper could not connect to the server. Check the connection and refresh.')
+      } finally {
+        setAuthReady(true)
+        setLoading(false)
+      }
+    })()
+  }, [loadProjects])
+
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setAuthBusy(true)
+    setAuthError('')
+    try {
+      const response = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+      if (!response.ok) throw new Error(response.status === 409 ? 'Administrator setup is required on the server.' : 'The password was not accepted.')
+      setPassword('')
+      setAuthenticated(true)
+      await loadProjects()
+    } catch (cause) {
+      setAuthError(cause instanceof Error ? cause.message : 'Could not sign in.')
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
+  async function signOut() {
+    await fetch('/api/auth/session', { method: 'DELETE' })
+    setAuthenticated(false)
+    setProjects([])
+    setPassword('')
+  }
 
   async function createProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -192,6 +243,25 @@ function App() {
 
   const projectCount = projects.length
 
+  if (!authReady || (authenticated && loading)) return <main className="auth-shell" role="status">Connecting securely to Caliper…</main>
+  if (!authenticated) return (
+    <main className="auth-shell">
+      <form className="auth-card" onSubmit={(event) => void signIn(event)}>
+        <div className="brand-mark"><Activity size={20} /></div>
+        <p className="eyebrow">CALIPER WORKSPACE</p>
+        <h1>{adminConfigured ? 'Welcome back.' : 'Finish administrator setup.'}</h1>
+        <p>{adminConfigured ? 'Sign in with your local administrator password.' : 'Run the administrator setup command on the server, then refresh this page.'}</p>
+        {!adminConfigured ? <code>docker compose exec api python -m caliper.cli admin init</code> : <>
+          <label htmlFor="admin-password">Administrator password</label>
+          <input id="admin-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+          {authError && <p className="auth-error" role="alert">{authError}</p>}
+          <button className="button button-primary" type="submit" disabled={authBusy || !password}>{authBusy ? 'Signing in…' : 'Sign in'}</button>
+        </>}
+        {!adminConfigured && authError && <p className="auth-error" role="alert">{authError}</p>}
+      </form>
+    </main>
+  )
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -213,7 +283,7 @@ function App() {
       <main className="main-content" id="projects">
         <header className="topbar">
           <div className="breadcrumb">Workspace <span>/</span> Projects</div>
-          <div className={`topbar-status connection-${connection}`}><span className="status-dot" />{connection === 'ready' ? 'Workspace connected' : connection === 'error' ? 'Connection issue' : 'Checking workspace'}</div>
+          <div className="topbar-status connection-ready"><span className="status-dot" />Administrator <button className="signout-button" type="button" onClick={() => void signOut()}>Sign out</button></div>
         </header>
 
         <div className="page-wrap">

@@ -99,3 +99,10 @@ The project owner approved the full proposed architecture and first-slice scope 
 - **Decision:** Slice 1 implements: Docker Compose (app + PostgreSQL with health checks, volume, non-root), Alembic initial migration, Projects CRUD (create/read/update/delete) through FastAPI → application use case → SQLAlchemy adapter, PostgreSQL-backed integration tests, truthful health/readiness endpoints, and a minimal shadcn/ui screen that lists and creates projects with server-confirmed updates and no manual refresh.
 - **Reason:** Directly targets release gates `project_crud_and_durable_persistence`, `persistence_after_restart`, and `PostgreSQL_integration_tests`, plus the UI refresh gate — in that order, per the delivery rule.
 - **Consequences:** Credential lifecycle, repository sync, and model adapters remain unbuilt until Slice 1 gates are verified; no merge or push without authorization.
+
+## D-017 — Single administrator authentication
+- **Status:** Accepted
+- **Decision:** Caliper starts with one local administrator. Bootstrap and password rotation happen through an interactive server-side CLI prompt; only an Argon2id password hash is stored. Sessions use random opaque tokens whose SHA-256 hashes are persisted in PostgreSQL and can be revoked. Browser cookies are HttpOnly, Secure, SameSite=Strict, and scoped to `/`. LAN browser access terminates TLS at Caddy using its internal CA; clients must explicitly trust the exported root certificate.
+- **Reason:** The owner selected one administrator account. The app handles repository credentials and operational controls, so project APIs require authentication and browser credentials must not traverse the LAN in plaintext.
+- **Alternatives considered:** Multiple user accounts (deferred); storing passwords or bearer tokens in environment variables or operational tables (rejected).
+- **Consequences:** Initial setup requires `docker compose exec api python -m caliper.cli admin init`, and each client device must trust the local Caddy root certificate. Resetting the administrator password revokes all existing sessions.

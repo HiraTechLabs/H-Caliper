@@ -37,8 +37,8 @@ services:
   web:
     build:
       context: ./web
-    ports:
-      - "${CALIPER_WEB_BIND:-127.0.0.1}:${CALIPER_WEB_PORT:-8080}:8080"
+    expose:
+      - "8080"
     depends_on:
       api:
         condition: service_healthy
@@ -48,6 +48,21 @@ services:
       timeout: 3s
       retries: 5
       start_period: 5s
+    restart: unless-stopped
+
+  proxy:
+    image: caddy:2.11.7-alpine
+    ports:
+      - "${CALIPER_WEB_BIND:-127.0.0.1}:${CALIPER_WEB_PORT:-8443}:443"
+    environment:
+      CALIPER_SERVER_NAME: ${CALIPER_SERVER_NAME:-localhost}
+    volumes:
+      - ./web/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
     restart: unless-stopped
 
   db-test:
@@ -81,3 +96,5 @@ services:
 
 volumes:
   postgres-data:
+  caddy-data:
+  caddy-config:

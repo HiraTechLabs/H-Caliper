@@ -8,10 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from caliper.adapters.postgres.database import get_session
 from caliper.adapters.postgres.project_repository import SqlProjectRepository
+from caliper.api.auth import require_admin
 from caliper.application.projects import ProjectNotFound, Projects
 from caliper.domain.project import Project, ProjectNameRequired
 
-router = APIRouter(prefix="/api/projects", tags=["projects"])
+router = APIRouter(prefix="/api/projects", tags=["projects"], dependencies=[Depends(require_admin)])
 
 
 class ProjectInput(BaseModel):

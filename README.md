@@ -4,7 +4,7 @@ Caliper is a self-hosted software factory for project context, AI-assisted engin
 
 ## Run locally with Docker Compose
 
-Prerequisites: Docker Engine and Docker Compose v2. The initial slice has no user authentication and binds to localhost by default. To access it from a private LAN, bind to the server's specific LAN IPv4 address and restrict the host firewall to the authorized client address. Do not bind to `0.0.0.0` or expose the app to an untrusted network.
+Prerequisites: Docker Engine and Docker Compose v2. Caliper uses a single local administrator and HTTPS. By default, the HTTPS gateway binds to localhost on port `8443`.
 
 1. Set a local database password in your shell. Do not commit it or put it in source control.
 
@@ -18,17 +18,38 @@ Prerequisites: Docker Engine and Docker Compose v2. The initial slice has no use
    docker compose up --build -d
    ```
 
-   For LAN access, set `CALIPER_WEB_BIND` to the server's LAN IPv4 address and add a host firewall rule allowing the web port only from the authorized client's IPv4 address. For example, replace the sample address and port as needed:
+   For LAN access, set the server's LAN IPv4 address as the bind address and certificate name. Restrict the host firewall to the authorized client device. For example, replace the sample addresses:
 
    ```bash
    export CALIPER_WEB_BIND=192.168.1.20
-   export CALIPER_WEB_PORT=8080
+   export CALIPER_WEB_PORT=8443
+   export CALIPER_SERVER_NAME=192.168.1.104
    docker compose up --build -d
    ```
 
-   The firewall command depends on the host firewall in use. Do not start with the LAN binding until that source-restricted rule is in place. Keep the same environment values when recreating the Compose services.
+   Keep the same environment values when recreating the Compose services. The app UI container is private to the Compose network; Caddy provides HTTPS and stores its local CA in persistent Docker volumes.
 
-3. Open `http://localhost:8080` on the server, or `http://<server-LAN-IPv4>:8080` from the authorized LAN client. The API is available through the UI gateway at `/api`; OpenAPI docs are at `/api/docs`.
+3. Initialize the administrator once. The password is entered interactively and only its Argon2id hash is stored:
+
+   ```bash
+   docker compose exec api python -m caliper.cli admin init
+   ```
+
+   To rotate the password later, use `docker compose exec api python -m caliper.cli admin reset-password`; this revokes all active browser sessions.
+
+4. Export Caddy's local root certificate on the server, then transfer it to the client through a trusted channel:
+
+   ```bash
+   docker compose cp proxy:/data/caddy/pki/authorities/local/root.crt ./caliper-root.crt
+   ```
+
+   On a Windows client, open PowerShell in the certificate folder and trust it for the current user:
+
+   ```powershell
+   Import-Certificate -FilePath .\caliper-root.crt -CertStoreLocation Cert:\CurrentUser\Root
+   ```
+
+   Open `https://<server-LAN-IPv4>:8443` on the client (or `https://localhost:8443` on the server). The API is available through the HTTPS gateway at `/api`; OpenAPI docs are at `/api/docs`. A private CA certificate must be trusted on each client device before the browser accepts the connection.
 
 The PostgreSQL data volume is named `postgres-data` and survives container recreation. Do not remove it to troubleshoot the application. Liveness (`/health/live`) reports whether the API process is running; readiness (`/health/ready`) checks PostgreSQL.
 
@@ -50,4 +71,4 @@ From a Bash-compatible shell, back up the operational database with `docker comp
 
 ## Current scope
 
-Projects support create, list, read, update, and delete. Project changes commit to PostgreSQL before the API reports success; the UI renders the response returned by the server. Credential management, repository synchronization, model adapters, durable background tasks, and the visual Principles Workspace are later vertical slices.
+The single administrator can sign in through an HttpOnly, Secure, SameSite=Strict session cookie. Password hashes and hashed, revocable session tokens are stored in PostgreSQL; project create, list, read, update, and delete endpoints require an active session. Project changes commit to PostgreSQL before the API reports success; the UI renders server-confirmed results. Credential lifecycle, repository synchronization, model adapters, durable background tasks, and the visual Principles Workspace are later vertical slices.
