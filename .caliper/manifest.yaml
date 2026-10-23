@@ -3,7 +3,7 @@ project:
   id: caliper
   name: Caliper
   kind: software_factory
-  status: foundation_proposed
+  status: implementation_in_progress
   description: Containerized software factory for project context, AI-assisted engineering workflows, verification, and controlled delivery.
   repository: https://github.com/HiraTechLabs/caliper
   default_branch: main
@@ -13,11 +13,17 @@ graph_human_file: .caliper/GRAPH.md
 graph_machine_file: .caliper/graph.yaml
 technology:
   backend_language: Python
+  api_framework: FastAPI
+  validation: Pydantic v2
+  data_access: SQLAlchemy 2.x Core
+  python_package_manager: uv
   database: PostgreSQL
   ui_component_system: shadcn/ui
-  frontend_framework: undecided_record_before_implementation
-  api_framework: undecided_record_before_implementation
-  migrations: required
+  frontend_framework: React + Vite + TypeScript
+  styling: Tailwind CSS
+  frontend_package_manager: pnpm
+  database_driver: psycopg 3
+  background_jobs: PostgreSQL-persisted in-process asyncio worker
   deployment: Docker
   local_orchestration: Docker Compose unless explicitly superseded
   model_connections: [provider_login, ollama, opencode]
