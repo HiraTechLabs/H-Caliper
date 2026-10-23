@@ -1,5 +1,7 @@
 import asyncio
 import os
+import subprocess
+from pathlib import Path
 
 import pytest
 from alembic import command
@@ -118,6 +120,13 @@ def test_project_validation_and_missing_delete(client: TestClient):
         ).status_code
         == 422
     )
+    assert (
+        client.post(
+            "/api/projects",
+            json={"name": "X", "repository_url": "https://example.com/repo?token=sensitive-value"},
+        ).status_code
+        == 422
+    )
     assert client.delete("/api/projects/00000000-0000-0000-0000-000000000000").status_code == 404
 
 
@@ -177,3 +186,76 @@ def test_credential_lifecycle_redacts_secret_and_blocks_project_delete(client: T
     assert client.delete(f"{credential_url}/{credential_id}").status_code == 204
     assert client.get(credential_url).json() == []
     assert client.delete(f"/api/projects/{project['id']}").status_code == 204
+
+
+def test_repository_knowledge_sync_refreshes_and_preserves_last_snapshot(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    def git(cwd: Path, *arguments: str) -> None:
+        subprocess.run(["git", *arguments], cwd=cwd, check=True, capture_output=True)
+
+    source = tmp_path / "working"
+    source.mkdir()
+    git(source, "init", "--initial-branch=main")
+    git(source, "config", "user.email", "test@example.invalid")
+    git(source, "config", "user.name", "Caliper test")
+    docs = source / "docs"
+    docs.mkdir()
+    guide = docs / "guide.md"
+    guide.write_text("First version", encoding="utf-8")
+    git(source, "add", ".")
+    git(source, "commit", "-m", "first knowledge")
+    local_root = tmp_path / "local-repositories"
+    local_root.mkdir()
+    bare = local_root / "controlled.git"
+    git(tmp_path, "clone", "--bare", str(source), str(bare))
+    monkeypatch.setenv("CALIPER_ALLOW_LOCAL_REPOSITORIES", "true")
+    monkeypatch.setenv("CALIPER_LOCAL_REPOSITORY_ROOT", str(local_root))
+    monkeypatch.setenv("CALIPER_REPOSITORY_ROOT", str(tmp_path / "sync-scratch"))
+
+    project = client.post(
+        "/api/projects",
+        json={"name": "Knowledge", "repository_url": bare.as_uri(), "default_branch": "main"},
+    )
+    assert project.status_code == 201
+    project_id = project.json()["id"]
+    sync_url = f"/api/projects/{project_id}/sync"
+    first = client.post(sync_url, json={})
+    assert first.status_code == 200, first.text
+    assert first.json()["status"] == "synchronized"
+    first_revision = first.json()["revision"]
+    assert client.get(sync_url).json()["revision"] == first_revision
+    assert (
+        client.get(f"/api/projects/{project_id}/knowledge").json()[0]["content"] == "First version"
+    )
+
+    guide.write_text("Second version", encoding="utf-8")
+    git(source, "add", ".")
+    git(source, "commit", "-m", "updated knowledge")
+    git(source, "push", str(bare), "main")
+    second = client.post(sync_url, json={})
+    assert second.status_code == 200, second.text
+    assert second.json()["revision"] != first_revision
+    assert (
+        client.get(f"/api/projects/{project_id}/knowledge").json()[0]["content"] == "Second version"
+    )
+
+    assert (
+        client.put(
+            f"/api/projects/{project_id}",
+            json={
+                "name": "Knowledge",
+                "repository_url": bare.as_uri(),
+                "default_branch": "missing-branch",
+            },
+        ).status_code
+        == 200
+    )
+    failed = client.post(sync_url, json={})
+    assert failed.status_code == 502
+    fresh = client.get(sync_url).json()
+    assert fresh["status"] == "stale"
+    assert fresh["revision"] == second.json()["revision"]
+    assert (
+        client.get(f"/api/projects/{project_id}/knowledge").json()[0]["content"] == "Second version"
+    )

@@ -48,3 +48,6 @@ Thumbs.db
 
 # --- Project Runtime ---
 *.log
+config/ssh/known_hosts
+local-repositories/*
+!local-repositories/.gitkeep

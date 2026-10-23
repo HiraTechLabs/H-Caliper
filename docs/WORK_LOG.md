@@ -134,3 +134,20 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed before final review.
 - **Skipped / limitations:** Docker engine unavailable, so the real PostgreSQL lifecycle/redaction integration test, DB migration application, live token check, and volume-backed secret deletion were not exercised. Full acceptance requires the Linux test profile.
 - **Manual prerequisites:** Add an HTTPS repository and a read-only token, then use “Check access”. Treat `reachable` as connectivity evidence, not an identity proof for public repositories.
+
+## 2026-10-24 — Repository knowledge synchronization
+
+- **Branch:** `feature/repository-sync` (based on the committed `feature/secret-store` branch).
+- **What:** Added protected repository sync/status/knowledge APIs, PostgreSQL migration `0004`, a bounded temporary Git clone and safe knowledge snapshot adapter, credential redaction, opt-in restricted local repositories, strict SSH host-key configuration, a UI sync/status/file viewer, and unit/UI/PostgreSQL integration coverage. Failed refreshes retain the last good snapshot and report stale.
+- **Commands and results:**
+  - From `backend/`, `uv --cache-dir C:\Users\Mohamed\.codex\visualizations\2026\10\23\01a16a05-9b43-73d2-b711-440fbac014a4\uv-cache run ruff format src tests migrations` → passed.
+  - From `backend/`, `uv --cache-dir C:\Users\Mohamed\.codex\visualizations\2026\10\23\01a16a05-9b43-73d2-b711-440fbac014a4\uv-cache run ruff check src tests migrations` → passed.
+  - From `backend/`, `uv --cache-dir C:\Users\Mohamed\.codex\visualizations\2026\10\23\01a16a05-9b43-73d2-b711-440fbac014a4\uv-cache run pytest --basetemp=C:\Users\Mohamed\.codex\visualizations\2026\10\23\01a16a05-9b43-73d2-b711-440fbac014a4\pytest-tmp` → 15 passed; 6 PostgreSQL integration tests skipped without an isolated PostgreSQL database. The new temporary bare Git repository and URL-safety tests passed.
+  - From `web/`, `pnpm.cmd test -- --run --pool=forks --maxWorkers=1 --minWorkers=1` → 9 passed.
+  - From `web/`, `pnpm.cmd run build` → passed (TypeScript and Vite production build).
+  - `$env:POSTGRES_PASSWORD='compose-validation-only'; docker compose config --quiet` → passed.
+  - `$env:CALIPER_DATABASE_URL='postgresql+psycopg://test:test@localhost/caliper_test'; uv ... run alembic upgrade head --sql` → generated PostgreSQL DDL through `0004_repository_knowledge_sync` without connecting to a database.
+  - With `CALIPER_DATABASE_URL` set to a disposable `caliper_test` URL, `uv --cache-dir C:\Users\Mohamed\.codex\visualizations\2026\10\23\01a16a05-9b43-73d2-b711-440fbac014a4\uv-cache run python -c "from caliper.main import app; print('\\n'.join(path for path in app.openapi()['paths'] if '/sync' in path or '/knowledge' in path))"` → both sync and knowledge paths appeared in OpenAPI.
+  - `git diff --check` → passed.
+- **Skipped / limitations:** Docker engine unavailable. PostgreSQL migrations and the new durable sync integration test, Docker build/startup, persistent restart behavior, and live remote access were not exercised. Sync currently occupies the bounded API request; D-015's persistent background worker remains a release blocker. Full details are in [task report 006](reports/006-repository-knowledge-sync.md).
+- **Manual prerequisites:** Start Docker on the Linux server and run the isolated PostgreSQL integration profile before accepting repository sync as production-ready. Set `CALIPER_ALLOW_LOCAL_REPOSITORIES=true` only when local repository access is intentionally needed; populate `config/ssh/known_hosts` with host keys verified through a trusted source for SSH remotes.

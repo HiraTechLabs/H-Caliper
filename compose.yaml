@@ -25,9 +25,15 @@ services:
       CALIPER_DB_NAME: ${POSTGRES_DB:-caliper}
       CALIPER_SECRET_DATA_DIR: /var/lib/caliper/secret-data
       CALIPER_SECRET_KEYRING: /var/lib/caliper/keyring/keyring.json
+      CALIPER_REPOSITORY_ROOT: /tmp/caliper-repositories
+      CALIPER_LOCAL_REPOSITORY_ROOT: /var/lib/caliper/local-repositories
+      CALIPER_ALLOW_LOCAL_REPOSITORIES: ${CALIPER_ALLOW_LOCAL_REPOSITORIES:-false}
+      CALIPER_SSH_KNOWN_HOSTS: /etc/caliper/ssh/known_hosts
     volumes:
       - caliper-secret-data:/var/lib/caliper/secret-data
       - caliper-keyring:/var/lib/caliper/keyring
+      - ./local-repositories:/var/lib/caliper/local-repositories:ro
+      - ./config/ssh:/etc/caliper/ssh:ro
     depends_on:
       db:
         condition: service_healthy

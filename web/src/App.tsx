@@ -3,6 +3,7 @@ import { Activity, ArrowUpRight, Boxes, Check, CircleAlert, FolderGit2, Pencil, 
 import { Button } from './components/ui/button'
 import { Card } from './components/ui/card'
 import { CredentialManager } from './components/CredentialManager'
+import { RepositorySyncManager } from './components/RepositorySyncManager'
 
 type Project = {
   id: string
@@ -36,6 +37,7 @@ function App() {
   const [editRepositoryUrl, setEditRepositoryUrl] = useState('')
   const [editDefaultBranch, setEditDefaultBranch] = useState('main')
   const [showCredentialManager, setShowCredentialManager] = useState(false)
+  const [showRepositorySync, setShowRepositorySync] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [authReady, setAuthReady] = useState(false)
@@ -242,6 +244,7 @@ function App() {
     setSelectedProject(null)
     setDialogError('')
     setShowCredentialManager(false)
+    setShowRepositorySync(false)
   }
 
   const projectCount = projects.length
@@ -387,7 +390,9 @@ function App() {
                   <div className="loading-card dialog-loading" role="status"><span className="loader" />Loading the latest project details…</div>
                 ) : selectedProject && dialogMode === 'details' ? (
                   <>
-                    {showCredentialManager ? (
+                    {showRepositorySync ? (
+                      <RepositorySyncManager projectId={selectedProject.id} onClose={() => setShowRepositorySync(false)} />
+                    ) : showCredentialManager ? (
                       <CredentialManager projectId={selectedProject.id} onClose={() => setShowCredentialManager(false)} />
                     ) : <>
                     <dl className="project-detail-list">
@@ -398,6 +403,7 @@ function App() {
                       <div><dt>Last updated</dt><dd>{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(selectedProject.updated_at))}</dd></div>
                     </dl>
                     <div className="dialog-actions">
+                      <Button variant="outline" size="sm" type="button" onClick={() => setShowRepositorySync(true)}>Repository knowledge</Button>
                       <Button variant="outline" size="sm" type="button" onClick={() => setShowCredentialManager(true)}>Manage credentials</Button>
                       <Button variant="outline" size="sm" type="button" onClick={() => { setDialogError(''); setDialogMode('delete') }}><Trash2 size={15} />Delete project</Button>
                       <Button variant="default" size="sm" type="button" onClick={beginEdit}><Pencil size={15} />Edit project</Button>

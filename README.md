@@ -57,6 +57,20 @@ The PostgreSQL data volume is named `postgres-data` and survives container recre
 
 Project details include credential management for HTTPS Git access tokens. The API returns only the credential name, username, and lifecycle metadata; saved token values cannot be viewed again. `Configured` means a token was safely stored, not that it works with the remote. `Reachable` means Git successfully queried the remote while sending the configured authorization header; a public remote may allow anonymous reads, so this does not always confirm the token's identity. Disable retains the encrypted secret for later re-enabling; replace saves the new token and clears its old encrypted value; delete destroys the secret. Remove credentials before deleting their project. SSH private-key credentials are not supported in this first implementation because trusted SSH host keys have not been provisioned.
 
+## Synchronize repository knowledge
+
+Open a project and choose **Repository knowledge**. Synchronization checks out the configured branch in a short-lived temporary directory, reads Markdown, MDX, YAML, TOML, and JSON files from `.caliper/`, `docs/`, `README.md`, and `AGENTS.md`, removes configured credential values and common token/private-key patterns, then stores the derived snapshot and revision in PostgreSQL. The temporary clone is deleted after each operation. Repository content is untrusted and is displayed as escaped plain text, never as executable HTML. Files larger than 1 MiB, snapshots larger than 10 MiB, trees larger than 64 MiB, and trees with more than 20,000 entries are rejected.
+
+For a controlled local Git repository, place a **bare** repository under `local-repositories/` and opt in explicitly before starting Compose:
+
+```bash
+export CALIPER_ALLOW_LOCAL_REPOSITORIES=true
+```
+
+Use its `file://` URL in the project settings. The API mounts this directory read-only and rejects local paths outside it. Local repository access is disabled by default. For SSH read access, place administrator-verified host keys in `config/ssh/known_hosts`; strict host-key checking stays enabled. HTTPS credentials are selected per synchronization and are never returned by the API.
+
+The project panel shows `configured`, `running`, `synchronized`, `stale`, or `failed`, along with branch, revision, last successful timestamp, and the current document snapshot. A failed refresh retains the last successful snapshot and reports it as stale; a first failed attempt is marked failed. Only one synchronization can run per project, and deleting a project is blocked while it runs. The sync endpoint is authenticated. PostgreSQL is authoritative for status and knowledge content.
+
 Encrypted secret payloads and their keyring use separate `caliper-secret-data` and `caliper-keyring` volumes. Back up both before upgrades and store the keyring backup in a separately access-controlled, encrypted location. A database backup alone cannot recover credentials; losing the keyring makes the encrypted payloads unrecoverable. Do not commit either backup or remove either volume as troubleshooting.
 
 ## Verify PostgreSQL persistence
@@ -77,4 +91,4 @@ From a Bash-compatible shell, back up the operational database with `docker comp
 
 ## Current scope
 
-The single administrator can sign in through an HttpOnly, Secure, SameSite=Strict session cookie. Password hashes and hashed, revocable session tokens are stored in PostgreSQL; project and credential endpoints require an active session. Project and credential metadata commit to PostgreSQL before the API reports success; credential payloads are stored only in the encrypted secret store. The credential UI supports add, check access, replace, disable, and delete. Repository knowledge synchronization, model adapters, durable background tasks, and the visual Principles Workspace remain later vertical slices.
+The single administrator can sign in through an HttpOnly, Secure, SameSite=Strict session cookie. Password hashes and hashed, revocable session tokens are stored in PostgreSQL; project, credential, and knowledge endpoints require an active session. Project, credential, sync status, and knowledge metadata commit to PostgreSQL before the API reports success; credential payloads are stored only in the encrypted secret store. The UI supports project and credential lifecycle, repository sync, and safe knowledge browsing. Model adapters, durable background jobs, and the visual Principles Workspace remain later vertical slices.

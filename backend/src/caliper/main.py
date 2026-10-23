@@ -9,6 +9,7 @@ from caliper.adapters.postgres.database import engine
 from caliper.api.auth import router as auth_router
 from caliper.api.credentials import router as credentials_router
 from caliper.api.projects import router as projects_router
+from caliper.api.repository_sync import router as repository_sync_router
 
 
 @asynccontextmanager
@@ -27,6 +28,7 @@ app = FastAPI(
 app.include_router(projects_router)
 app.include_router(auth_router)
 app.include_router(credentials_router)
+app.include_router(repository_sync_router)
 
 
 @app.middleware("http")
