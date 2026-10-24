@@ -183,3 +183,19 @@ Every implementation session records: date, branch, exact commands, results, ski
 - **Skipped / limitations:** Docker engine is unavailable. The API snapshot integration case and all other PostgreSQL cases remain skipped; no live API/UI/Docker run was performed. Graph nodes remain planned pending full release-gate verification.
 - **Final backend note:** After the recorded 22-pass run, the workspace endpoint was changed to fetch project, sync state, and snapshot documents in one PostgreSQL statement to prevent mixed revisions during concurrent synchronization. Graph structure validation was also hardened. Ruff/format checks passed afterward. A pytest rerun was rejected by the approval prompt, so those final backend changes and their newly added unit/integration tests are not test-verified in this environment.
 - **Manual prerequisites:** Run the isolated PostgreSQL integration profile on a Docker Linux host to verify the authenticated workspace endpoint against a persisted repository snapshot.
+
+## 2026-10-24 — Ollama endpoint and model discovery
+
+- **Branch:** `feature/ollama-provider` (based on committed `feature/principles-workspace`, `f4d228c`).
+- **What:** Added administrator-protected Ollama endpoint configuration, bounded HTTP discovery of model identifiers, durable PostgreSQL settings and discovered-model selection, plus an administrator UI. Endpoint changes clear stale catalog/selection. This slice does not implement provider-account login, OpenCode, or inference. Updated README and graph descriptions; graph nodes remain planned until acceptance gates pass.
+- **Commands and results:**
+  - Backend focused tests (with writable `UV_CACHE_DIR`): `uv run --project backend pytest -q backend/tests/test_ollama_discovery.py backend/tests/test_ollama_provider_application.py` → 10 passed.
+  - Backend quality: `uv run --project backend ruff check backend/src backend/tests backend/migrations`; `uv run --project backend ruff format --check backend/src backend/tests backend/migrations` → passed; 57 files already formatted.
+  - From `web/`, `pnpm.cmd test -- --run --pool=forks --maxWorkers=1 --minWorkers=1` → 11 passed.
+  - From `web/`, `pnpm.cmd run build` → passed (TypeScript and Vite production build).
+  - From `backend/`, with a disposable `caliper_test` URL, `uv run alembic upgrade head --sql` → generated PostgreSQL DDL through `0006_ollama_provider`; this did not connect to or mutate a database.
+  - FastAPI OpenAPI inspection → `/api/providers/ollama`, `/api/providers/ollama/validate`, and `/api/providers/ollama/model` registered.
+  - `$env:POSTGRES_PASSWORD='compose-validation-only'; docker compose config --quiet` → passed.
+  - `git diff --check` → passed before final commit review.
+- **Skipped / limitations:** Docker Linux engine is unavailable; the new persistence integration case, applied migration, full backend suite, container startup, live Ollama reachability, and browser flow were not exercised. Inference and provider-account login are outside this slice.
+- **Manual prerequisites:** On the Linux host, run the isolated PostgreSQL integration profile and validate against a reachable Ollama endpoint before marking the graph node complete.

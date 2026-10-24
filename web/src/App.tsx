@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Activity, ArrowUpRight, Boxes, Check, CircleAlert, FolderGit2, Pencil, Plus, RefreshCw, Sparkles, Trash2, X } from 'lucide-react'
+import { Activity, ArrowUpRight, Boxes, Check, CircleAlert, Cpu, FolderGit2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Card } from './components/ui/card'
 import { CredentialManager } from './components/CredentialManager'
 import { PrinciplesWorkspace } from './components/PrinciplesWorkspace'
+import { OllamaProviderManager } from './components/OllamaProviderManager'
 import { RepositorySyncManager } from './components/RepositorySyncManager'
 
 type Project = {
@@ -40,6 +41,7 @@ function App() {
   const [showCredentialManager, setShowCredentialManager] = useState(false)
   const [showRepositorySync, setShowRepositorySync] = useState(false)
   const [showPrinciplesWorkspace, setShowPrinciplesWorkspace] = useState(false)
+  const [showOllamaSettings, setShowOllamaSettings] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [authReady, setAuthReady] = useState(false)
@@ -281,7 +283,7 @@ function App() {
         <div className="sidebar-caption">WORKSPACE</div>
         <nav aria-label="Main navigation">
           <a className="nav-item nav-active" href="#projects"><Boxes size={17} />Projects<span className="nav-count">{projectCount}</span></a>
-          <a className="nav-item nav-muted" href="#principles" aria-disabled="true"><Sparkles size={17} />Knowledge<span className="soon-tag">SOON</span></a>
+          <button className="nav-item nav-muted nav-button" type="button" onClick={() => { setDialogMode(null); setSelectedProject(null); setShowOllamaSettings(true) }}><Cpu size={17} />Ollama</button>
         </nav>
         <div className="sidebar-bottom">
           <div className={`connection-indicator connection-${connection}`}><span className="status-dot" />{connection === 'ready' ? 'Workspace connected' : connection === 'error' ? 'Workspace unavailable' : 'Connecting…'}</div>
@@ -443,6 +445,8 @@ function App() {
               </section>
             </div>
           )}
+
+          {showOllamaSettings && <div className="dialog-backdrop"><section className="project-dialog ollama-dialog" role="dialog" aria-modal="true" aria-labelledby="ollama-title"><OllamaProviderManager onClose={() => setShowOllamaSettings(false)} /></section></div>}
 
           <footer className="page-footer"><span>CALIPER <span className="footer-dot">·</span> BUILT FOR THOUGHTFUL WORK</span><span>Project workspace <span aria-hidden="true">·</span> v0.1</span></footer>
         </div>

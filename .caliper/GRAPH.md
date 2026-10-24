@@ -15,6 +15,7 @@
 - **model-router:** shared internal model invocation contract.
 - **provider-login-adapter:** documented provider-account authorization where supported.
 - **ollama-adapter:** Ollama endpoint validation, model discovery, and invocation.
+- **Ollama connection settings:** A single-administrator connection record stores the configured endpoint, last checked status, discovered model identifiers, and selected model. Endpoint credentials and invocation are outside this slice.
 - **opencode-adapter:** OpenCode CLI configuration and invocation.
 - **task-runner:** durable task lifecycle and background execution.
 - **event-stream:** optional progress delivery for long-running work; never authoritative state.

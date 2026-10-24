@@ -1,0 +1,1 @@
+"""Ollama HTTP integration adapter."""

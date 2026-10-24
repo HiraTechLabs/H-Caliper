@@ -34,6 +34,7 @@ edges:
   - {from: model-router, to: provider-login-adapter, relation: routes_to}
   - {from: model-router, to: ollama-adapter, relation: routes_to}
   - {from: model-router, to: opencode-adapter, relation: routes_to}
+  - {from: application-services, to: ollama-adapter, relation: validates_endpoint_and_discovers_models}
   - {from: application-services, to: task-runner, relation: schedules}
   - {from: task-runner, to: postgresql, relation: persists_state}
   - {from: task-runner, to: event-stream, relation: publishes_progress}

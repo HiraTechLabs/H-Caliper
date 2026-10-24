@@ -314,3 +314,52 @@ def test_repository_knowledge_sync_refreshes_and_preserves_last_snapshot(
         ]
         == "Second version"
     )
+
+
+def test_ollama_configuration_validation_and_model_selection_are_persisted(
+    client: TestClient, monkeypatch
+):
+    from caliper.adapters.ollama.discovery import OllamaHttpDiscoveryAdapter
+
+    database_url = (
+        make_url(os.environ["TEST_DATABASE_URL"])
+        if os.environ.get("TEST_DATABASE_URL")
+        else database_url_from_environment()
+    )
+    sync_engine = create_engine(database_url)
+    with sync_engine.begin() as connection:
+        connection.execute(text("DELETE FROM ollama_settings"))
+
+    async def discover(_self, _endpoint_url):
+        return ["qwen:latest", "llama:8b"]
+
+    monkeypatch.setattr(OllamaHttpDiscoveryAdapter, "discover", discover)
+    try:
+        initial = client.get("/api/providers/ollama")
+        assert initial.status_code == 200
+        assert initial.json()["status"] == "not_configured"
+
+        configured = client.put(
+            "/api/providers/ollama", json={"endpoint_url": "http://ollama:11434"}
+        )
+        assert configured.status_code == 200
+        assert configured.json()["status"] == "configured"
+
+        validated = client.post("/api/providers/ollama/validate")
+        assert validated.status_code == 200
+        assert validated.json()["status"] == "reachable"
+        assert validated.json()["models"] == ["qwen:latest", "llama:8b"]
+        assert validated.json()["checked_at"]
+
+        selected = client.put("/api/providers/ollama/model", json={"model_id": "qwen:latest"})
+        assert selected.status_code == 200
+        assert selected.json()["selected_model_id"] == "qwen:latest"
+        assert client.get("/api/providers/ollama").json()["selected_model_id"] == "qwen:latest"
+        assert (
+            client.put("/api/providers/ollama/model", json={"model_id": "unknown"}).status_code
+            == 409
+        )
+    finally:
+        with sync_engine.begin() as connection:
+            connection.execute(text("DELETE FROM ollama_settings"))
+        sync_engine.dispose()

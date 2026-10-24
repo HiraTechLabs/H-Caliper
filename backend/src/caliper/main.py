@@ -10,6 +10,7 @@ from caliper.adapters.postgres.task_runner import PostgresTaskRunner
 from caliper.adapters.task_handlers import handle_persisted_task
 from caliper.api.auth import router as auth_router
 from caliper.api.credentials import router as credentials_router
+from caliper.api.ollama_provider import router as ollama_provider_router
 from caliper.api.projects import router as projects_router
 from caliper.api.repository_sync import router as repository_sync_router
 
@@ -37,6 +38,7 @@ app.include_router(projects_router)
 app.include_router(auth_router)
 app.include_router(credentials_router)
 app.include_router(repository_sync_router)
+app.include_router(ollama_provider_router)
 
 
 @app.middleware("http")

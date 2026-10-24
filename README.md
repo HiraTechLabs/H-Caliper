@@ -75,6 +75,12 @@ Choose **Principles workspace** in a project's details to navigate its synchroni
 
 Encrypted secret payloads and their keyring use separate `caliper-secret-data` and `caliper-keyring` volumes. Back up both before upgrades and store the keyring backup in a separately access-controlled, encrypted location. A database backup alone cannot recover credentials; losing the keyring makes the encrypted payloads unrecoverable. Do not commit either backup or remove either volume as troubleshooting.
 
+## Connect Ollama
+
+Open **Ollama** from the workspace navigation, enter the endpoint that the Caliper API container can reach, save it, then choose **Validate and discover**. For Ollama running on the Docker host, `http://host.docker.internal:11434` is a common endpoint; its availability depends on the host's Docker networking. Caliper queries only `/api/tags`, follows no redirects, applies a four-second timeout and a one-megabyte response limit, then stores the connection status and discovered model names in PostgreSQL. Selectable model IDs must come from the latest successful discovery. Changing the endpoint clears the prior catalog and selection.
+
+The Ollama adapter does not support endpoint passwords, API keys, or inference yet. Use an endpoint reachable and trusted by the self-hosted Caliper server; HTTP sends requests without transport encryption, so use HTTPS when the endpoint is reached over an untrusted network. Model IDs and endpoint URL are configuration metadata, not credentials.
+
 ## Verify PostgreSQL persistence
 
 The integration profile creates a separate ephemeral PostgreSQL database whose name is `caliper_test`. It never targets the application database.
@@ -93,4 +99,4 @@ From a Bash-compatible shell, back up the operational database with `docker comp
 
 ## Current scope
 
-The single administrator can sign in through an HttpOnly, Secure, SameSite=Strict session cookie. Password hashes and hashed, revocable session tokens are stored in PostgreSQL; project, credential, and knowledge endpoints require an active session. Project, credential, task, sync status, and knowledge metadata commit to PostgreSQL before the API reports success; credential payloads are stored only in the encrypted secret store. The UI supports project and credential lifecycle, durable repository sync, safe knowledge browsing, and a revisioned Principles Workspace. Model adapters remain a later vertical slice.
+The single administrator can sign in through an HttpOnly, Secure, SameSite=Strict session cookie. Password hashes and hashed, revocable session tokens are stored in PostgreSQL; project, credential, and knowledge endpoints require an active session. Project, credential, task, provider settings, sync status, and knowledge metadata commit to PostgreSQL before the API reports success; credential payloads are stored only in the encrypted secret store. The UI supports project and credential lifecycle, durable repository sync, safe knowledge browsing, a revisioned Principles Workspace, and Ollama endpoint validation/model discovery. Provider-account login, OpenCode integration, and model invocation remain later vertical slices.

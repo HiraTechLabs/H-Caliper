@@ -137,6 +137,26 @@ class TaskRow(Base):
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
+class OllamaSettingsRow(Base):
+    __tablename__ = "ollama_settings"
+    __table_args__ = (
+        CheckConstraint("id = 1", name="ck_ollama_settings_singleton"),
+        CheckConstraint(
+            "status IN ('not_configured', 'configured', 'reachable', 'failed')",
+            name="ck_ollama_settings_status",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    endpoint_url: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    selected_model_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="configured")
+    models: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class KnowledgeFileRow(Base):
     __tablename__ = "knowledge_files"
     __table_args__ = (
