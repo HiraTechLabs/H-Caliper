@@ -300,3 +300,13 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `docker compose build web` → not run in this Windows workspace; Linux Docker engine is unavailable here. Server build previously failed during registry metadata/tarball fetch, before the frontend build step.
 - **Skipped / limitations:** The mitigation needs validation by rebuilding the web image on the Linux host with registry access. It does not remove the network dependency or guarantee recovery from a prolonged registry outage.
 - **Manual prerequisites:** Fetch this commit on the server, then run `docker compose build web`; recreate the web container only after the build succeeds.
+
+## 2026-10-24 — Enable provider navigation and project model access
+
+- **Branch:** `feature/project-model-selection`.
+- **What:** Removed the disabled `nav-muted` style from Ollama and AI providers navigation controls. Added a direct **Choose AI model** action to each project card that opens that project's model assignment panel.
+- **Commands and results:**
+  - `git diff --check` → passed.
+  - Frontend tests/build → not run in this workspace; the requested issue was confirmed directly in CSS (`.nav-muted` sets `pointer-events:none`) and fixed at its component usage.
+- **Skipped / limitations:** Model options still require a connected OpenCode provider or a successful Ollama discovery. The server must rebuild the web image after this commit is published.
+- **Manual prerequisites:** Push this commit to `feature/project-model-selection`, fetch it on the server, and build/recreate the web service after the build succeeds.

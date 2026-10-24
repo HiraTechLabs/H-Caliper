@@ -155,15 +155,17 @@ function App() {
     }
   }
 
-  async function openProject(projectId: string) {
+  async function openProject(projectId: string, destination: 'details' | 'model' = 'details') {
     setDialogMode('details')
     setDialogLoading(true)
     setDialogError('')
     setSelectedProject(null)
+    setShowProjectModel(false)
     try {
       const response = await fetch(`/api/projects/${projectId}`)
       if (!response.ok) throw new Error('Could not load the latest project details. Try again.')
       setSelectedProject(await response.json() as Project)
+      setShowProjectModel(destination === 'model')
     } catch (cause) {
       setDialogError(cause instanceof Error ? cause.message : 'Could not load project details.')
     } finally {
@@ -288,8 +290,8 @@ function App() {
         <div className="sidebar-caption">WORKSPACE</div>
         <nav aria-label="Main navigation">
           <a className="nav-item nav-active" href="#projects"><Boxes size={17} />Projects<span className="nav-count">{projectCount}</span></a>
-          <button className="nav-item nav-muted nav-button" type="button" onClick={() => { setDialogMode(null); setSelectedProject(null); setShowOllamaSettings(true) }}><Cpu size={17} />Ollama</button>
-          <button className="nav-item nav-muted nav-button" type="button" onClick={() => { setDialogMode(null); setSelectedProject(null); setShowOpenCodeSettings(true) }}><Cpu size={17} />AI providers</button>
+          <button className="nav-item nav-button" type="button" onClick={() => { setDialogMode(null); setSelectedProject(null); setShowOllamaSettings(true) }}><Cpu size={17} />Ollama</button>
+          <button className="nav-item nav-button" type="button" onClick={() => { setDialogMode(null); setSelectedProject(null); setShowOpenCodeSettings(true) }}><Cpu size={17} />AI providers</button>
         </nav>
         <div className="sidebar-bottom">
           <div className={`connection-indicator connection-${connection}`}><span className="status-dot" />{connection === 'ready' ? 'Workspace connected' : connection === 'error' ? 'Workspace unavailable' : 'Connecting…'}</div>
@@ -354,6 +356,7 @@ function App() {
                           <span>Added {new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(project.created_at))}</span>
                         </div>
                         <button className="project-details-button" type="button" onClick={() => void openProject(project.id)}>View project details <ArrowUpRight size={13} /></button>
+                        <button className="project-details-button" type="button" onClick={() => void openProject(project.id, 'model')}>Choose AI model <Cpu size={13} /></button>
                       </div>
                     </Card>
                   ))}
