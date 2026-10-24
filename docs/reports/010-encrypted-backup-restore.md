@@ -1,7 +1,7 @@
 # Encrypted backup and guarded restore
 
-**Date:** 2026-10-24  
-**Branch:** `feature/backup-restore`  
+**Date:** 2026-10-24
+**Branch:** `feature/backup-restore`
 **Base:** `feature/ollama-provider` at `19ef70f`
 
 ## Delivered
