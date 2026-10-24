@@ -1,3 +1,6 @@
+FROM node:22-bookworm-slim AS opencode
+RUN npm install --global opencode-ai@1.19.4
+
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 UV_COMPILE_BYTECODE=1
@@ -6,7 +9,9 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.l
     && apt-get install -y --no-install-recommends git openssh-client ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir uv==0.11.7 \
-    && groupadd --system app && useradd --system --gid app --create-home app
+    && groupadd --system --gid 10001 app && useradd --system --uid 10001 --gid app --create-home app
+COPY --from=opencode /usr/local/lib/node_modules/opencode-ai/bin/opencode.exe /usr/local/bin/opencode
+RUN chmod 0755 /usr/local/bin/opencode
 RUN install -d -o app -g app /var/lib/caliper/secret-data /var/lib/caliper/keyring
 WORKDIR /app
 COPY pyproject.toml uv.lock ./

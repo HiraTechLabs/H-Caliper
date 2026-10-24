@@ -120,3 +120,9 @@ The project owner approved the full proposed architecture and first-slice scope 
 - **Reason:** Provides a narrow usable credential slice for HTTPS Git remotes while keeping deletion and project ownership explicit. SSH private-key support requires separately provisioning and verifying trusted host keys and remains deferred.
 - **Alternatives considered:** SSH without a trusted `known_hosts` source (rejected); storing tokens in PostgreSQL or repository URLs (rejected).
 - **Consequences:** A credential is only `configured` until a remote Git check runs. A successful check is reported as `reachable`; public remotes may not confirm token identity. A disabled credential remains stored but is not used; replacing resets validation. Deleting a credential destroys its underlying secret, and project deletion requires deleting credentials first.
+
+## D-020 — OpenCode provider authentication
+- **Status:** Accepted
+- **Decision:** Use OpenCode's documented provider and authentication interfaces for provider discovery, supported API-key/OAuth methods, connection status, model discovery, and logout. Store the complete OpenCode authentication profile only as an encrypted Fernet Secret Store payload; PostgreSQL stores its secret reference and the selected provider/model identifier. OpenCode's working profile is materialized only in a memory-backed runtime directory and rehydrated from the encrypted payload at startup.
+- **Reason:** The owner selected a general OpenCode-based provider connection. OpenCode supports provider-specific API-key and OAuth methods, while D-018 prohibits plaintext credentials in operational storage.
+- **Consequences:** Never expose auth payloads or OAuth tokens in responses, logs, or errors. Use only provider IDs, methods, prompts, and models returned by the running OpenCode instance. If the encrypted profile cannot be restored, report provider authentication unavailable and do not fabricate a connected state.

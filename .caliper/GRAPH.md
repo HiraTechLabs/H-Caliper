@@ -16,13 +16,15 @@
 - **provider-login-adapter:** documented provider-account authorization where supported.
 - **ollama-adapter:** Ollama endpoint validation and model discovery; inference is not implemented yet.
 - **Ollama connection settings:** A single-administrator connection record stores the configured endpoint, last checked status, discovered model identifiers, and selected model. Endpoint credentials and invocation are outside this slice.
-- **opencode-adapter:** OpenCode CLI configuration and invocation.
+- **opencode-adapter:** OpenCode CLI/API provider discovery, documented API-key/OAuth authentication, encrypted-profile lifecycle, and model selection.
 - **task-runner:** durable task lifecycle and background execution.
 - **event-stream:** optional progress delivery for long-running work; never authoritative state.
 - **tests:** unit, PostgreSQL integration, contract, security, UI, and end-to-end tests.
 - **container-platform:** images, Compose, health checks, configuration, and persistent volumes.
 - **tls-gateway:** Caddy HTTPS termination and persistent internal certificate authority.
 - **administrator-auth:** single administrator password verification and revocable sessions.
+
+OpenCode credentials are stored as one encrypted Secret Store profile. OpenCode receives a temporary runtime copy from a memory-backed directory; PostgreSQL stores only the encrypted-profile reference and selected model identifier.
 
 ## Required flow
 UI → TLS gateway → API authentication → application use case → domain rules and infrastructure ports → PostgreSQL/secret store/repository/model adapter. PostgreSQL keeps project-scoped credential references and lifecycle metadata; secret payloads live only in the encrypted secret store. A mutation reports success only after required durable work succeeds. The UI then renders the server-confirmed result. Long-running work persists status; events only communicate progress. Knowledge sync records repository, branch, revision, timestamp, and outcome; selected files are bounded, credential-redacted, and stored as derived snapshots while the repository remains the source of truth. Administrator passwords are Argon2id hashes; session tokens are only stored as hashes.

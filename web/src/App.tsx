@@ -5,6 +5,7 @@ import { Card } from './components/ui/card'
 import { CredentialManager } from './components/CredentialManager'
 import { PrinciplesWorkspace } from './components/PrinciplesWorkspace'
 import { OllamaProviderManager } from './components/OllamaProviderManager'
+import { OpenCodeProviderManager } from './components/OpenCodeProviderManager'
 import { RepositorySyncManager } from './components/RepositorySyncManager'
 
 type Project = {
@@ -42,6 +43,7 @@ function App() {
   const [showRepositorySync, setShowRepositorySync] = useState(false)
   const [showPrinciplesWorkspace, setShowPrinciplesWorkspace] = useState(false)
   const [showOllamaSettings, setShowOllamaSettings] = useState(false)
+  const [showOpenCodeSettings, setShowOpenCodeSettings] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [authReady, setAuthReady] = useState(false)
@@ -284,6 +286,7 @@ function App() {
         <nav aria-label="Main navigation">
           <a className="nav-item nav-active" href="#projects"><Boxes size={17} />Projects<span className="nav-count">{projectCount}</span></a>
           <button className="nav-item nav-muted nav-button" type="button" onClick={() => { setDialogMode(null); setSelectedProject(null); setShowOllamaSettings(true) }}><Cpu size={17} />Ollama</button>
+          <button className="nav-item nav-muted nav-button" type="button" onClick={() => { setDialogMode(null); setSelectedProject(null); setShowOpenCodeSettings(true) }}><Cpu size={17} />AI providers</button>
         </nav>
         <div className="sidebar-bottom">
           <div className={`connection-indicator connection-${connection}`}><span className="status-dot" />{connection === 'ready' ? 'Workspace connected' : connection === 'error' ? 'Workspace unavailable' : 'Connecting…'}</div>
@@ -447,6 +450,7 @@ function App() {
           )}
 
           {showOllamaSettings && <div className="dialog-backdrop"><section className="project-dialog ollama-dialog" role="dialog" aria-modal="true" aria-labelledby="ollama-title"><OllamaProviderManager onClose={() => setShowOllamaSettings(false)} /></section></div>}
+          {showOpenCodeSettings && <div className="dialog-backdrop"><section className="project-dialog ollama-dialog" role="dialog" aria-modal="true" aria-labelledby="opencode-title"><OpenCodeProviderManager onClose={() => setShowOpenCodeSettings(false)} /></section></div>}
 
           <footer className="page-footer"><span>CALIPER <span className="footer-dot">·</span> BUILT FOR THOUGHTFUL WORK</span><span>Project workspace <span aria-hidden="true">·</span> v0.1</span></footer>
         </div>

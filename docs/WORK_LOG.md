@@ -225,3 +225,18 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed.
 - **Skipped / limitations:** A clean clone build and browser-driven end-to-end suite were not run. No live Ollama endpoint was available. Provider-login and OpenCode CLI integration remain unimplemented; these release gates must pass before the project plan is complete. Production LAN deployment was not changed. Architecture graph nodes remain `planned` until each responsibility has its required direct verification.
 - **Manual prerequisites:** None for the isolated PostgreSQL, runtime restart, or backup/restore checks recorded here. The remaining model-provider and browser end-to-end gates still need implementation and verification.
+
+## 2026-10-24 — OpenCode provider authentication and model selection
+
+- **Branch:** `feature/opencode-cli` (based on runtime acceptance commit `903cda9`).
+- **What:** Added the pinned OpenCode CLI runtime, in-memory runtime profile directory, encrypted profile reference and durable model selection, administrator-protected API-key/OAuth/disconnect endpoints, sanitized provider/model catalog, and an administrator UI. Accepted D-020, updated the architecture graph descriptions, added migration `0007_opencode_provider`, and documented provider login and storage boundaries.
+- **Commands and results:**
+  - `docker compose --profile test run --build --rm integration-tests` → **47 passed**, 2 warnings, against the isolated PostgreSQL test database. The suite exercised the actual OpenCode CLI server, persisted an acceptance-only invalid API key through the encrypted Secret Store, selected a catalog model and read it back, disconnected, and confirmed the secret was absent from encrypted payload bytes.
+  - From `web/`, `pnpm.cmd test -- --pool=forks --maxWorkers=1 --minWorkers=1` → **13 passed**; `pnpm.cmd run build` → passed.
+  - From `backend/`, `uv run ruff check src tests migrations`; `uv run ruff format --check src tests migrations` → passed (66 files formatted).
+  - `$env:POSTGRES_PASSWORD='<ephemeral validation value>'; docker compose config --quiet` → passed. The temporary value is omitted from this log and was not committed.
+  - `docker compose build api web` → both images built successfully, including the pinned OpenCode binary and frontend production bundle.
+  - An isolated Compose runtime on loopback port `18443` → database/API/web healthy; `/health/live`, `/health/ready`, and OpenCode `/global/health` returned success; HTTPS web root returned HTTP 200. The isolated Compose project and its test volumes were removed after the run.
+  - `git diff --check` → passed.
+- **Skipped / limitations:** No real provider account, API credential, or OAuth consent was used. OAuth initiation and code/automatic callback behavior are wired to OpenCode's documented interface; completion against an account remains an administrator action. Model inference is outside this slice. The critical browser-driven end-to-end gate and other remaining unchecked acceptance criteria remain open; see `docs/INITIAL_ACCEPTANCE_CRITERIA.md` and [report 011](reports/011-opencode-provider.md).
+- **Manual prerequisites:** Sign into a selected provider from **AI providers** before inference workflows can use it. The runtime is an administrator-controlled outbound connection.

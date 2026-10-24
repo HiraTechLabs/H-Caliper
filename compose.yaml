@@ -29,11 +29,16 @@ services:
       CALIPER_LOCAL_REPOSITORY_ROOT: /var/lib/caliper/local-repositories
       CALIPER_ALLOW_LOCAL_REPOSITORIES: ${CALIPER_ALLOW_LOCAL_REPOSITORIES:-false}
       CALIPER_SSH_KNOWN_HOSTS: /etc/caliper/ssh/known_hosts
+      OPENCODE_BASE_URL: http://127.0.0.1:4096
+      XDG_DATA_HOME: /run/caliper-opencode/data
+      XDG_CONFIG_HOME: /run/caliper-opencode/config
     volumes:
       - caliper-secret-data:/var/lib/caliper/secret-data
       - caliper-keyring:/var/lib/caliper/keyring
       - ./local-repositories:/var/lib/caliper/local-repositories:ro
       - ./config/ssh:/etc/caliper/ssh:ro
+    tmpfs:
+      - /run/caliper-opencode:uid=10001,gid=10001,mode=0700
     depends_on:
       db:
         condition: service_healthy
@@ -113,6 +118,8 @@ services:
     volumes:
       - ./backend/tests:/app/backend/tests:ro
       - ./.caliper:/app/.caliper:ro
+    tmpfs:
+      - /run/caliper-opencode:uid=10001,gid=10001,mode=0700
     environment:
       CALIPER_DB_USER: ${POSTGRES_USER:-caliper}
       CALIPER_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your environment}

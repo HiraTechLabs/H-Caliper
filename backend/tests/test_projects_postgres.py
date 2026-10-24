@@ -363,3 +363,60 @@ def test_ollama_configuration_validation_and_model_selection_are_persisted(
         with sync_engine.begin() as connection:
             connection.execute(text("DELETE FROM ollama_settings"))
         sync_engine.dispose()
+
+
+def test_opencode_account_authentication_and_model_selection_are_durable(client: TestClient):
+    from pathlib import Path
+
+    response = client.get("/api/providers/opencode")
+    assert response.status_code == 200
+    catalog = response.json()
+    assert catalog["version"]
+    provider_id = next(
+        provider_id
+        for provider_id, methods in catalog["auth_methods"].items()
+        if any(method.get("type") == "api" for method in methods)
+    )
+    provider = next(item for item in catalog["providers"] if item["id"] == provider_id)
+    assert provider["models"]
+    secret = "acceptance-only-invalid-key"
+    connected = client.put(
+        f"/api/providers/opencode/auth/{provider_id}/api-key",
+        json={"api_key": secret, "metadata": {}},
+    )
+    assert connected.status_code == 200
+    assert provider_id in connected.json()["connected_provider_ids"]
+    assert secret not in connected.text
+
+    model_id = provider["models"][0]["id"]
+    selected = client.put(
+        "/api/providers/opencode/model",
+        json={"provider_id": provider_id, "model_id": model_id},
+    )
+    assert selected.status_code == 200
+    fresh = client.get("/api/providers/opencode").json()
+    assert fresh["selected_provider_id"] == provider_id
+    assert fresh["selected_model_id"] == model_id
+
+    database_engine = create_engine(
+        make_url(os.environ["TEST_DATABASE_URL"])
+        if os.environ.get("TEST_DATABASE_URL")
+        else database_url_from_environment()
+    )
+    try:
+        with database_engine.connect() as connection:
+            secret_ref = connection.execute(
+                text("SELECT auth_secret_ref FROM opencode_settings WHERE id = 1")
+            ).scalar_one()
+    finally:
+        database_engine.dispose()
+    assert secret_ref
+    vault = Path(os.environ["CALIPER_SECRET_DATA_DIR"])
+    encrypted = b"".join(path.read_bytes() for path in vault.iterdir() if path.is_file())
+    assert secret.encode() not in encrypted
+
+    disconnected = client.delete(f"/api/providers/opencode/auth/{provider_id}")
+    assert disconnected.status_code == 200
+    assert provider_id not in disconnected.json()["connected_provider_ids"]
+    assert disconnected.json()["selected_model_id"] is None
+    assert client.get("/api/providers/opencode").json()["selected_provider_id"] is None

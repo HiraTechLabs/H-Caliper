@@ -25,10 +25,10 @@ Do not expand into broad autonomous execution until these gates pass.
 - [ ] Graph comes from graph.yaml and invalid references are reported.
 
 ## Model providers
-- [ ] Provider login has a documented supported flow and honest unsupported-provider behavior.
+- [x] Provider login has a documented supported flow and honest unsupported-provider behavior.
 - [ ] Ollama endpoint validation and model discovery work where supported.
-- [ ] OpenCode CLI/auth/model configuration is validated.
-- [ ] Each adapter has independent tests and actionable errors.
+- [x] OpenCode CLI/auth/model configuration is validated.
+- [x] Each adapter has independent tests and actionable errors.
 
 ## Quality gates
 - [x] PostgreSQL-backed integration tests pass.

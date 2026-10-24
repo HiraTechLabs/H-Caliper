@@ -157,6 +157,26 @@ class OllamaSettingsRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class OpenCodeSettingsRow(Base):
+    __tablename__ = "opencode_settings"
+    __table_args__ = (
+        CheckConstraint("id = 1", name="ck_opencode_settings_singleton"),
+        CheckConstraint(
+            "status IN ('not_configured', 'configured', 'connected', 'failed')",
+            name="ck_opencode_settings_status",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    auth_secret_ref: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    selected_provider_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    selected_model_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="not_configured")
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class KnowledgeFileRow(Base):
     __tablename__ = "knowledge_files"
     __table_args__ = (

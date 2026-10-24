@@ -81,6 +81,12 @@ Open **Ollama** from the workspace navigation, enter the endpoint that the Calip
 
 The Ollama adapter does not support endpoint passwords, API keys, or inference yet. Use an endpoint reachable and trusted by the self-hosted Caliper server; HTTP sends requests without transport encryption, so use HTTPS when the endpoint is reached over an untrusted network. Model IDs and endpoint URL are configuration metadata, not credentials.
 
+## Connect hosted model providers
+
+Open **AI providers** in the workspace navigation. Caliper uses the pinned OpenCode CLI runtime to list supported providers, provider-specific API-key and OAuth flows, and available models. Choose a provider, complete one of its displayed sign-in methods, then choose a model from a connected provider. OAuth providers may use a browser authorization page and either return a code or complete automatically; follow the instructions shown by OpenCode. Providers requiring a flow that OpenCode does not expose are not offered as supported methods.
+
+Caliper encrypts the complete OpenCode authentication profile with its Fernet Secret Store and stores only the encrypted profile reference and model selection in PostgreSQL. The CLI reads a temporary profile under the API container's memory-backed `/run/caliper-opencode` directory. On restart the profile is restored from encrypted storage; if decryption fails, Caliper reports the provider service as unavailable. Disconnecting a provider removes its authorization from the profile. The UI accepts secrets in password fields and does not return them from the API. The chosen model is configuration only; this slice does not yet send inference requests.
+
 ## Verify PostgreSQL persistence
 
 The integration profile creates a separate ephemeral PostgreSQL database whose name is `caliper_test`. It never targets the application database.
@@ -117,4 +123,4 @@ The script checks that the named project matches the current database container,
 
 ## Current scope
 
-The single administrator can sign in through an HttpOnly, Secure, SameSite=Strict session cookie. Password hashes and hashed, revocable session tokens are stored in PostgreSQL; project, credential, and knowledge endpoints require an active session. Project, credential, task, provider settings, sync status, and knowledge metadata commit to PostgreSQL before the API reports success; credential payloads are stored only in the encrypted secret store. The UI supports project and credential lifecycle, durable repository sync, safe knowledge browsing, a revisioned Principles Workspace, and Ollama endpoint validation/model discovery. Provider-account login, OpenCode integration, and model invocation remain later vertical slices.
+The single administrator can sign in through an HttpOnly, Secure, SameSite=Strict session cookie. Password hashes and hashed, revocable session tokens are stored in PostgreSQL; project, credential, and knowledge endpoints require an active session. Project, credential, task, provider settings, sync status, and knowledge metadata commit to PostgreSQL before the API reports success; credential and provider-authentication payloads are stored only in the encrypted secret store. The UI supports project and credential lifecycle, durable repository sync, safe knowledge browsing, a revisioned Principles Workspace, Ollama endpoint validation/model discovery, and OpenCode provider login and model selection. Model inference and autonomous execution remain outside this release slice.
