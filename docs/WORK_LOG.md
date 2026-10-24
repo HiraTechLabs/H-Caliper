@@ -276,3 +276,13 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed.
 - **Skipped / limitations:** The provider settings panel remained unresponsive in a browser-driven attempt even after 120 seconds, so it is not part of the passing browser scenario; OpenCode credential/model operations are verified by the PostgreSQL integration suite and provider controls by frontend tests. A temporary Ollama Docker image pull did not finish in the available time; the attempt was interrupted before a test container or live endpoint was created. No real provider account/credential was used. The remaining acceptance gate is live Ollama network/model discovery.
 - **Manual prerequisites:** Configure a reachable Ollama endpoint to complete its live network/model-discovery gate; authorize a real provider account to verify external OAuth/API access.
+
+## 2026-10-24 — Resilient Debian package-index download during Docker build
+
+- **Branch:** `feature/opencode-cli` (current source branch; creating a separate `FIX/docker-apt-retries` branch was denied by the workspace Git metadata permissions).
+- **What:** Added APT retries, 60-second HTTP/HTTPS timeouts, IPv4 preference, and disabled unnecessary language indexes in the backend image build. This addresses intermittent mirror resets/timeouts reported inside the Docker build; a successful host-side HTTP probe alone does not verify container/build networking.
+- **Commands and results:**
+  - `git diff --check` → passed.
+  - `docker info --format '{{.ServerVersion}}'` → unavailable; Docker Desktop Linux engine pipe could not be reached from this workstation.
+- **Skipped / limitations:** The Docker image build could not be rerun here because the local Docker engine is unavailable. Changes need to be fetched on the Linux server and verified there. No TLS checks were weakened and no persistent volumes were touched.
+- **Manual prerequisites:** On the Linux server, update to this source revision and retry the API/secret-init image build. If APT still fails, capture the new full output to distinguish mirror/index access from Docker daemon egress.
