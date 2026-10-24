@@ -3,7 +3,7 @@
 Do not expand into broad autonomous execution until these gates pass.
 
 ## Runtime and persistence
-- [ ] Clean checkout builds reproducibly.
+- [x] Clean checkout builds reproducibly.
 - [x] Application and PostgreSQL start using documented container configuration.
 - [x] Health checks distinguish liveness from readiness.
 - [x] Data survives app-container recreation/restart.

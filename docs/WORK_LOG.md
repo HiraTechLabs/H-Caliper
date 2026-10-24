@@ -250,3 +250,14 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed.
 - **Skipped / limitations:** The entire browser-driven end-to-end gate and clean-checkout reproducibility gate have not yet been run. No live Ollama endpoint is configured; Ollama adapter validation/discovery is covered by focused adapter and PostgreSQL API tests using a controlled discovery response.
 - **Manual prerequisites:** A live Ollama endpoint is needed to verify network reachability against a real Ollama installation.
+
+## 2026-10-24 — Clean-checkout reproducibility
+
+- **Branch:** `feature/opencode-cli`, clean clone at commit `8e1883a`.
+- **What:** Cloned the committed feature branch into a fresh temporary directory with no working-tree state or preinstalled project dependencies. This verifies the accepted source tree rather than the active checkout.
+- **Commands and results:**
+  - `git clone --no-hardlinks --single-branch --branch feature/opencode-cli <workspace> <temporary-clean-checkout>` → passed; clone HEAD was `8e1883a105ca82455a594661f1a16cf9203bd786`, and the checkout was clean.
+  - From the clean checkout, `docker compose build api web` → both images built successfully. The frontend lockfile passed its supply-chain policy check, dependencies installed from scratch, and the production TypeScript/Vite build passed.
+  - Updated the clean-checkout acceptance gate to passed based on this build.
+- **Skipped / limitations:** The clone verification covers container builds for the API and web services; it does not claim that user-specific server `.env` or LAN/firewall configuration can be reproduced from the repository.
+- **Manual prerequisites:** None for the source build. Set server-local Compose environment values on each host as described in the README.
