@@ -14,7 +14,7 @@
 - **principles-workspace:** Authenticated UI for searching and navigating revisioned manifest, principles, decisions, and validated architecture graph snapshots.
 - **model-router:** shared internal model invocation contract.
 - **provider-login-adapter:** documented provider-account authorization where supported.
-- **ollama-adapter:** Ollama endpoint validation, model discovery, and invocation.
+- **ollama-adapter:** Ollama endpoint validation and model discovery; inference is not implemented yet.
 - **Ollama connection settings:** A single-administrator connection record stores the configured endpoint, last checked status, discovered model identifiers, and selected model. Endpoint credentials and invocation are outside this slice.
 - **opencode-adapter:** OpenCode CLI configuration and invocation.
 - **task-runner:** durable task lifecycle and background execution.
