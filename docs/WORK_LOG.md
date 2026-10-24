@@ -166,3 +166,20 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed before final commit review.
 - **Skipped / limitations:** The Linux Docker engine is unavailable here; the real PostgreSQL queue, failure/restart recovery, applied migration, and container startup checks require the documented test profile on the Linux host.
 - **Manual prerequisites:** Run the isolated `db-test` integration profile before treating the durable worker gate as verified.
+
+## 2026-10-24 — Revisioned Principles Workspace
+
+- **Branch:** `feature/principles-workspace` (based on committed `feature/durable-task-runner`, `5af6a20`).
+- **What:** Added an authenticated workspace read model over persisted repository snapshots, safe Markdown views for Principles and Manifest, decision cards, search and snapshot navigation, and an accessible keyboard-operable graph from the synchronized `graph.yaml`. Graph references are validated server-side and errors are exposed to the view. Repository, branch, revision, last successful sync, and stale/sync status remain visible.
+- **Commands and results:**
+  - From `backend/`, `uv run pytest --basetemp=<writable-temp>` → 22 passed; 6 PostgreSQL integration tests skipped without isolated PostgreSQL.
+  - From `backend/`, `uv run ruff check src tests migrations`; `uv run ruff format --check src tests migrations` → passed.
+  - From `web/`, `pnpm.cmd test -- --run --pool=forks --maxWorkers=1 --minWorkers=1` → 10 passed.
+  - From `web/`, `pnpm.cmd run build` → passed.
+  - `$env:POSTGRES_PASSWORD='compose-validation-only'; docker compose config --quiet` → passed.
+  - With `CALIPER_DATABASE_URL` set to a disposable `caliper_test` URL, `uv run alembic upgrade head --sql` → generated PostgreSQL DDL through `0005_durable_task_runner`; no database connection was made.
+  - FastAPI OpenAPI inspection → workspace endpoint registered.
+  - Canonical `.caliper/graph.yaml` validation → no errors; `git diff --check` → passed.
+- **Skipped / limitations:** Docker engine is unavailable. The API snapshot integration case and all other PostgreSQL cases remain skipped; no live API/UI/Docker run was performed. Graph nodes remain planned pending full release-gate verification.
+- **Final backend note:** After the recorded 22-pass run, the workspace endpoint was changed to fetch project, sync state, and snapshot documents in one PostgreSQL statement to prevent mixed revisions during concurrent synchronization. Graph structure validation was also hardened. Ruff/format checks passed afterward. A pytest rerun was rejected by the approval prompt, so those final backend changes and their newly added unit/integration tests are not test-verified in this environment.
+- **Manual prerequisites:** Run the isolated PostgreSQL integration profile on a Docker Linux host to verify the authenticated workspace endpoint against a persisted repository snapshot.

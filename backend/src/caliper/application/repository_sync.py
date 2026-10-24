@@ -73,6 +73,9 @@ class RepositorySyncRepository(Protocol):
     async def fail(self, project_id: UUID, error_code: str, at: datetime) -> SyncState: ...
     async def state(self, project_id: UUID) -> SyncState | None: ...
     async def documents(self, project_id: UUID) -> list[KnowledgeDocument]: ...
+    async def workspace_snapshot(
+        self, project_id: UUID
+    ) -> tuple[RepositorySource | None, SyncState | None, list[KnowledgeDocument]]: ...
 
 
 class GitSyncAdapter(Protocol):
@@ -165,6 +168,42 @@ class RepositorySync:
                 current.document_count,
             )
         return current
+
+    async def workspace(self, project_id: UUID) -> tuple[SyncState, list[KnowledgeDocument]]:
+        source, current, documents = await self._repository.workspace_snapshot(project_id)
+        if source is None:
+            raise ProjectNotFound(str(project_id))
+        if current is None:
+            now = datetime.now(UTC)
+            current = SyncState(
+                project_id,
+                "configured" if source.url else "not_configured",
+                source.url or "",
+                source.branch,
+                None,
+                now,
+                None,
+                None,
+                0,
+            )
+        elif (
+            current.status == "synchronized"
+            and current.last_success_at
+            and (current.source_url != source.url or current.branch != source.branch)
+        ):
+            current = SyncState(
+                current.project_id,
+                "stale",
+                current.source_url,
+                current.branch,
+                current.revision,
+                current.attempted_at,
+                current.last_success_at,
+                "source_changed",
+                current.document_count,
+                current.task_id,
+            )
+        return current, documents
 
     async def documents(self, project_id: UUID) -> list[KnowledgeDocument]:
         if await self._repository.project_source(project_id) is None:

@@ -1,10 +1,12 @@
 import asyncio
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
 
 from caliper.application.repository_sync import (
     GitCredential,
+    KnowledgeDocument,
     RepositorySource,
     RepositorySync,
     SyncState,
@@ -18,6 +20,7 @@ TASK_ID = UUID("0366363c-6e06-4177-804e-a9fdc71ac0f2")
 class QueueRepository:
     def __init__(self):
         self.enqueued = None
+        self.snapshot = None
 
     async def project_source(self, project_id):
         return RepositorySource(PROJECT_ID, "https://example.test/repo.git", "main")
@@ -30,6 +33,9 @@ class QueueRepository:
     async def enqueue(self, project_id, url, branch, credential_id, at):
         self.enqueued = (project_id, url, branch, credential_id)
         return SyncState(project_id, "queued", url, branch, None, at, None, None, 0, TASK_ID)
+
+    async def workspace_snapshot(self, project_id):
+        return self.snapshot
 
 
 class SecretStoreMustNotBeRead:
@@ -52,3 +58,22 @@ def test_enqueue_persists_only_project_and_credential_references(credential_id):
         "main",
         credential_id,
     )
+
+
+def test_workspace_returns_sync_state_and_documents_from_one_snapshot():
+    repository = QueueRepository()
+    source = RepositorySource(PROJECT_ID, "https://example.test/repo.git", "main")
+    now = datetime.now(UTC)
+    state = SyncState(
+        PROJECT_ID, "synchronized", source.url, source.branch, "a" * 40, now, now, None, 1
+    )
+    document = KnowledgeDocument(
+        ".caliper/graph.yaml", "a" * 40, "b" * 64, "nodes: []\nedges: []", now
+    )
+    repository.snapshot = (source, state, [document])
+    sync = RepositorySync(repository, SecretStoreMustNotBeRead(), git=object())
+
+    fresh_state, documents = asyncio.run(sync.workspace(PROJECT_ID))
+
+    assert fresh_state.revision == document.revision
+    assert documents == [document]

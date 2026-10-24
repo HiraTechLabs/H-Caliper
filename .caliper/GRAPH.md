@@ -11,6 +11,7 @@
 - **secret-store:** Fernet-encrypted secret files with a separately persisted keyring; PostgreSQL stores references only.
 - **repository-adapter:** Bounded Git access with strict SSH host verification, branch/revision inspection, and sanitized knowledge synchronization. Repository files are untrusted; only selected documentation formats enter PostgreSQL snapshots.
 - **knowledge-files:** version-controlled manifest, principles, decisions, and graph.
+- **principles-workspace:** Authenticated UI for searching and navigating revisioned manifest, principles, decisions, and validated architecture graph snapshots.
 - **model-router:** shared internal model invocation contract.
 - **provider-login-adapter:** documented provider-account authorization where supported.
 - **ollama-adapter:** Ollama endpoint validation, model discovery, and invocation.

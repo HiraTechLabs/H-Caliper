@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from caliper.adapters.postgres.database import get_session
 from caliper.adapters.repository_sync_factory import build_repository_sync
 from caliper.api.auth import require_admin
+from caliper.application.knowledge_graph import parse_knowledge_graph
 from caliper.application.repository_sync import (
     KnowledgeDocument,
     ProjectNotFound,
@@ -54,6 +55,13 @@ class KnowledgeOutput(BaseModel):
     synced_at: datetime
 
 
+class WorkspaceOutput(BaseModel):
+    sync: SyncOutput
+    documents: list[KnowledgeOutput]
+    graph: dict | None
+    graph_errors: list[str]
+
+
 def service(session: Annotated[AsyncSession, Depends(get_session)]) -> RepositorySync:
     return build_repository_sync(session)
 
@@ -76,6 +84,30 @@ async def get_knowledge(
         return await sync.documents(project_id)
     except ProjectNotFound as error:
         raise HTTPException(status_code=404, detail="Project not found") from error
+
+
+@router.get("/workspace", response_model=WorkspaceOutput)
+async def get_workspace(
+    project_id: UUID, sync: Annotated[RepositorySync, Depends(service)]
+) -> WorkspaceOutput:
+    try:
+        state, documents = await sync.workspace(project_id)
+    except ProjectNotFound as error:
+        raise HTTPException(status_code=404, detail="Project not found") from error
+
+    graph_document = next((item for item in documents if item.path == ".caliper/graph.yaml"), None)
+    graph: dict | None = None
+    graph_errors: list[str] = []
+    if graph_document is None:
+        graph_errors.append(".caliper/graph.yaml is missing from the synchronized revision.")
+    else:
+        graph, graph_errors = parse_knowledge_graph(graph_document.content)
+    return WorkspaceOutput(
+        sync=SyncOutput.model_validate(state),
+        documents=[KnowledgeOutput.model_validate(item) for item in documents],
+        graph=graph,
+        graph_errors=graph_errors,
+    )
 
 
 @router.post("/sync", response_model=SyncOutput, status_code=status.HTTP_202_ACCEPTED)

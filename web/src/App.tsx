@@ -3,6 +3,7 @@ import { Activity, ArrowUpRight, Boxes, Check, CircleAlert, FolderGit2, Pencil, 
 import { Button } from './components/ui/button'
 import { Card } from './components/ui/card'
 import { CredentialManager } from './components/CredentialManager'
+import { PrinciplesWorkspace } from './components/PrinciplesWorkspace'
 import { RepositorySyncManager } from './components/RepositorySyncManager'
 
 type Project = {
@@ -38,6 +39,7 @@ function App() {
   const [editDefaultBranch, setEditDefaultBranch] = useState('main')
   const [showCredentialManager, setShowCredentialManager] = useState(false)
   const [showRepositorySync, setShowRepositorySync] = useState(false)
+  const [showPrinciplesWorkspace, setShowPrinciplesWorkspace] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [authReady, setAuthReady] = useState(false)
@@ -245,6 +247,7 @@ function App() {
     setDialogError('')
     setShowCredentialManager(false)
     setShowRepositorySync(false)
+    setShowPrinciplesWorkspace(false)
   }
 
   const projectCount = projects.length
@@ -392,6 +395,8 @@ function App() {
                   <>
                     {showRepositorySync ? (
                       <RepositorySyncManager projectId={selectedProject.id} onClose={() => setShowRepositorySync(false)} />
+                    ) : showPrinciplesWorkspace ? (
+                      <PrinciplesWorkspace projectId={selectedProject.id} onClose={() => setShowPrinciplesWorkspace(false)} />
                     ) : showCredentialManager ? (
                       <CredentialManager projectId={selectedProject.id} onClose={() => setShowCredentialManager(false)} />
                     ) : <>
@@ -404,6 +409,7 @@ function App() {
                     </dl>
                     <div className="dialog-actions">
                       <Button variant="outline" size="sm" type="button" onClick={() => setShowRepositorySync(true)}>Repository knowledge</Button>
+                      <Button variant="outline" size="sm" type="button" onClick={() => setShowPrinciplesWorkspace(true)}>Principles workspace</Button>
                       <Button variant="outline" size="sm" type="button" onClick={() => setShowCredentialManager(true)}>Manage credentials</Button>
                       <Button variant="outline" size="sm" type="button" onClick={() => { setDialogError(''); setDialogMode('delete') }}><Trash2 size={15} />Delete project</Button>
                       <Button variant="default" size="sm" type="button" onClick={beginEdit}><Pencil size={15} />Edit project</Button>

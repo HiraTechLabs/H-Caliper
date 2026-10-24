@@ -204,6 +204,12 @@ def test_repository_knowledge_sync_refreshes_and_preserves_last_snapshot(
     docs.mkdir()
     guide = docs / "guide.md"
     guide.write_text("First version", encoding="utf-8")
+    caliper = source / ".caliper"
+    caliper.mkdir()
+    (caliper / "graph.yaml").write_text(
+        "nodes:\n  - {id: api, label: API}\nedges:\n  - {from: api, to: missing, relation: calls}\n",
+        encoding="utf-8",
+    )
     git(source, "add", ".")
     git(source, "commit", "-m", "first knowledge")
     local_root = tmp_path / "local-repositories"
@@ -253,9 +259,19 @@ def test_repository_knowledge_sync_refreshes_and_preserves_last_snapshot(
     assert task.status == "succeeded"
     assert task.payload == {"project_id": project_id, "credential_id": None}
     assert client.get(sync_url).json()["revision"] == first_revision
+    first_documents = client.get(f"/api/projects/{project_id}/knowledge").json()
     assert (
-        client.get(f"/api/projects/{project_id}/knowledge").json()[0]["content"] == "First version"
+        next(document for document in first_documents if document["path"] == "docs/guide.md")[
+            "content"
+        ]
+        == "First version"
     )
+    workspace = client.get(f"/api/projects/{project_id}/workspace")
+    assert workspace.status_code == 200
+    assert workspace.json()["sync"]["revision"] == first_revision
+    assert {document["revision"] for document in workspace.json()["documents"]} == {first_revision}
+    assert workspace.json()["graph"]["nodes"][0]["id"] == "api"
+    assert "references unknown node(s): to" in workspace.json()["graph_errors"][0]
 
     guide.write_text("Second version", encoding="utf-8")
     git(source, "add", ".")
@@ -266,8 +282,12 @@ def test_repository_knowledge_sync_refreshes_and_preserves_last_snapshot(
     second_state = wait_for_sync()
     assert second_state["status"] == "synchronized"
     assert second_state["revision"] != first_revision
+    second_documents = client.get(f"/api/projects/{project_id}/knowledge").json()
     assert (
-        client.get(f"/api/projects/{project_id}/knowledge").json()[0]["content"] == "Second version"
+        next(document for document in second_documents if document["path"] == "docs/guide.md")[
+            "content"
+        ]
+        == "Second version"
     )
 
     assert (
@@ -287,6 +307,10 @@ def test_repository_knowledge_sync_refreshes_and_preserves_last_snapshot(
     fresh = client.get(sync_url).json()
     assert fresh["status"] == "stale"
     assert fresh["revision"] == second_state["revision"]
+    stale_documents = client.get(f"/api/projects/{project_id}/knowledge").json()
     assert (
-        client.get(f"/api/projects/{project_id}/knowledge").json()[0]["content"] == "Second version"
+        next(document for document in stale_documents if document["path"] == "docs/guide.md")[
+            "content"
+        ]
+        == "Second version"
     )

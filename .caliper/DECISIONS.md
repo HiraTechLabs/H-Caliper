@@ -46,7 +46,7 @@ Statuses: **Proposed**, **Accepted**, **Superseded**, **Rejected**. The project 
 ## D-009 — Visual Principles Workspace
 - **Status:** Accepted
 - **Decision:** Render principles, manifest, decisions, and graph as a visual workspace sourced from canonical files.
-- **Consequences:** Safe Markdown, search, cross-links, accessible graph navigation, revision display, and truthful sync status are acceptance criteria.
+- **Consequences:** Safe Markdown, search, cross-links, accessible graph navigation, revision display, and truthful sync status are acceptance criteria. The API validates graph node IDs and edge references before the UI renders the revisioned graph snapshot.
 
 ## D-010 — Truthful status semantics
 - **Status:** Accepted

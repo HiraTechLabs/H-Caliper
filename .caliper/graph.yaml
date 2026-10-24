@@ -28,6 +28,8 @@ edges:
   - {from: application-services, to: secret-store, relation: uses_port}
   - {from: application-services, to: repository-adapter, relation: uses_port}
   - {from: repository-adapter, to: knowledge-files, relation: reads_revisioned_files}
+  - {from: api, to: knowledge-files, relation: validates_revisioned_snapshots}
+  - {from: web-ui, to: knowledge-files, relation: renders_searchable_workspace}
   - {from: application-services, to: model-router, relation: uses_port}
   - {from: model-router, to: provider-login-adapter, relation: routes_to}
   - {from: model-router, to: ollama-adapter, relation: routes_to}

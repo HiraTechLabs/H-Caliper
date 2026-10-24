@@ -264,3 +264,50 @@ class SqlRepositorySyncRepository:
             KnowledgeDocument(row.path, row.revision, row.sha256, row.content, row.synced_at)
             for row in rows
         ]
+
+    async def workspace_snapshot(
+        self, project_id: UUID
+    ) -> tuple[RepositorySource | None, SyncState | None, list[KnowledgeDocument]]:
+        result = await self._session.execute(
+            select(ProjectRow, ProjectSyncRow, KnowledgeFileRow)
+            .outerjoin(ProjectSyncRow, ProjectSyncRow.project_id == ProjectRow.id)
+            .outerjoin(KnowledgeFileRow, KnowledgeFileRow.project_id == ProjectRow.id)
+            .where(ProjectRow.id == project_id)
+            .order_by(KnowledgeFileRow.path)
+            .execution_options(populate_existing=True)
+        )
+        rows = result.all()
+        if not rows:
+            return None, None, []
+
+        project = rows[0][0]
+        source = RepositorySource(project.id, project.repository_url, project.default_branch)
+        sync_row = rows[0][1]
+        documents = [
+            KnowledgeDocument(
+                document.path,
+                document.revision,
+                document.sha256,
+                document.content,
+                document.synced_at,
+            )
+            for _, _, document in rows
+            if document is not None
+        ]
+        state = (
+            SyncState(
+                project.id,
+                sync_row.status,
+                sync_row.source_url,
+                sync_row.branch,
+                sync_row.revision,
+                sync_row.attempted_at,
+                sync_row.last_success_at,
+                sync_row.error_code,
+                len(documents),
+                sync_row.task_id,
+            )
+            if sync_row is not None
+            else None
+        )
+        return source, state, documents
