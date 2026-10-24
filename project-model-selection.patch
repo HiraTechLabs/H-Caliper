@@ -1,0 +1,859 @@
+From 674827d0c21d67666b97188c0f8f41ad3592aaae Mon Sep 17 00:00:00 2001
+From: Mohamed Khaled <mohamedkhaledprofessional@gmail.com>
+Date: Sat, 24 Oct 2026 21:08:04 +0300
+Subject: [PATCH] feat: assign AI models per project
+
+---
+ .caliper/DECISIONS.md                         |   6 +
+ .caliper/GRAPH.md                             |   1 +
+ .caliper/graph.yaml                           |   5 +
+ README.md                                     |   6 +-
+ .../migrations/versions/0008_project_model.py |  34 ++++
+ .../src/caliper/adapters/postgres/models.py   |  17 ++
+ .../postgres/project_model_repository.py      |  63 ++++++
+ backend/src/caliper/api/project_models.py     | 180 ++++++++++++++++++
+ .../src/caliper/application/project_models.py |  69 +++++++
+ backend/src/caliper/main.py                   |   2 +
+ backend/tests/test_projects_postgres.py       |  38 ++++
+ docs/INITIAL_ACCEPTANCE_CRITERIA.md           |   1 +
+ docs/WORK_LOG.md                              |  14 ++
+ docs/reports/012-project-model-selection.md   |  24 +++
+ web/src/App.tsx                               |   6 +
+ .../components/ProjectModelManager.test.tsx   |  40 ++++
+ web/src/components/ProjectModelManager.tsx    | 123 ++++++++++++
+ web/src/styles.css                            |   1 +
+ 18 files changed, 629 insertions(+), 1 deletion(-)
+ create mode 100644 backend/migrations/versions/0008_project_model.py
+ create mode 100644 backend/src/caliper/adapters/postgres/project_model_repository.py
+ create mode 100644 backend/src/caliper/api/project_models.py
+ create mode 100644 backend/src/caliper/application/project_models.py
+ create mode 100644 docs/reports/012-project-model-selection.md
+ create mode 100644 web/src/components/ProjectModelManager.test.tsx
+ create mode 100644 web/src/components/ProjectModelManager.tsx
+
+diff --git a/.caliper/DECISIONS.md b/.caliper/DECISIONS.md
+index dc5b385..3991b00 100644
+--- a/.caliper/DECISIONS.md
++++ b/.caliper/DECISIONS.md
+@@ -126,3 +126,9 @@ The project owner approved the full proposed architecture and first-slice scope
+ - **Decision:** Use OpenCode's documented provider and authentication interfaces for provider discovery, supported API-key/OAuth methods, connection status, model discovery, and logout. Store the complete OpenCode authentication profile only as an encrypted Fernet Secret Store payload; PostgreSQL stores its secret reference and the selected provider/model identifier. OpenCode's working profile is materialized only in a memory-backed runtime directory and rehydrated from the encrypted payload at startup.
+ - **Reason:** The owner selected a general OpenCode-based provider connection. OpenCode supports provider-specific API-key and OAuth methods, while D-018 prohibits plaintext credentials in operational storage.
+ - **Consequences:** Never expose auth payloads or OAuth tokens in responses, logs, or errors. Use only provider IDs, methods, prompts, and models returned by the running OpenCode instance. If the encrypted profile cannot be restored, report provider authentication unavailable and do not fabricate a connected state.
++
++## D-021 — Per-project model assignment
++- **Status:** Accepted
++- **Decision:** Each project may select one model from the currently connected OpenCode providers or the latest successfully discovered Ollama catalog. Persist the provider kind, provider identifier, model identifier, and update time against that project in PostgreSQL. Changing a global provider connection does not silently rewrite project assignments; unavailable assignments remain visible and must be reselected from a fresh catalog.
++- **Reason:** The owner requested selecting a model for each project; the prior provider screens configured only a factory-wide default and did not satisfy project ownership.
++- **Consequences:** Assignment is configuration only. Model inference and execution remain outside this slice. API writes must validate against the current connected/discovered catalog and confirm the durable selection with a fresh read.
+diff --git a/.caliper/GRAPH.md b/.caliper/GRAPH.md
+index 57b0bbd..2ced829 100644
+--- a/.caliper/GRAPH.md
++++ b/.caliper/GRAPH.md
+@@ -23,6 +23,7 @@
+ - **container-platform:** images, Compose, health checks, configuration, and persistent volumes.
+ - **tls-gateway:** Caddy HTTPS termination and persistent internal certificate authority.
+ - **administrator-auth:** single administrator password verification and revocable sessions.
++- **project-model-selection:** Per-project model assignment validated against connected OpenCode providers or the latest reachable Ollama discovery catalog and persisted in PostgreSQL.
+ 
+ OpenCode credentials are stored as one encrypted Secret Store profile. OpenCode receives a temporary runtime copy from a memory-backed directory; PostgreSQL stores only the encrypted-profile reference and selected model identifier.
+ 
+diff --git a/.caliper/graph.yaml b/.caliper/graph.yaml
+index 975f592..58c6731 100644
+--- a/.caliper/graph.yaml
++++ b/.caliper/graph.yaml
+@@ -20,6 +20,7 @@ nodes:
+   - {id: container-platform, label: Docker Platform, kind: infrastructure, status: planned}
+   - {id: tls-gateway, label: HTTPS Gateway, kind: security, status: planned}
+   - {id: administrator-auth, label: Administrator Authentication, kind: security, status: planned}
++  - {id: project-model-selection, label: Per-project Model Selection, kind: application, status: planned}
+ edges:
+   - {from: web-ui, to: api, relation: calls}
+   - {from: api, to: application-services, relation: delegates_to}
+@@ -53,3 +54,7 @@ edges:
+   - {from: tls-gateway, to: container-platform, relation: persists_internal_ca}
+   - {from: api, to: administrator-auth, relation: requires_for_projects}
+   - {from: administrator-auth, to: postgresql, relation: persists_hashes_and_sessions}
++  - {from: web-ui, to: project-model-selection, relation: configures_for_project}
++  - {from: application-services, to: project-model-selection, relation: validates_catalog_selection}
++  - {from: project-model-selection, to: postgresql, relation: persists_per_project_selection}
++  - {from: tests, to: project-model-selection, relation: verifies_persistence_and_catalog_validation}
+diff --git a/README.md b/README.md
+index 06bc5b4..64b7562 100644
+--- a/README.md
++++ b/README.md
+@@ -85,7 +85,11 @@ The Ollama adapter does not support endpoint passwords, API keys, or inference y
+ 
+ Open **AI providers** in the workspace navigation. Caliper uses the pinned OpenCode CLI runtime to list supported providers, provider-specific API-key and OAuth flows, and available models. Choose a provider, complete one of its displayed sign-in methods, then choose a model from a connected provider. OAuth providers may use a browser authorization page and either return a code or complete automatically; follow the instructions shown by OpenCode. Providers requiring a flow that OpenCode does not expose are not offered as supported methods.
+ 
+-Caliper encrypts the complete OpenCode authentication profile with its Fernet Secret Store and stores only the encrypted profile reference and model selection in PostgreSQL. The CLI reads a temporary profile under the API container's memory-backed `/run/caliper-opencode` directory. On restart the profile is restored from encrypted storage; if decryption fails, Caliper reports the provider service as unavailable. Disconnecting a provider removes its authorization from the profile. The UI accepts secrets in password fields and does not return them from the API. The chosen model is configuration only; this slice does not yet send inference requests.
++Caliper encrypts the complete OpenCode authentication profile with its Fernet Secret Store and stores only the encrypted profile reference and model selection in PostgreSQL. The CLI reads a temporary profile under the API container's memory-backed `/run/caliper-opencode` directory. On restart the profile is restored from encrypted storage; if decryption fails, Caliper reports the provider service as unavailable. Disconnecting a provider removes its authorization from the profile. The UI accepts secrets in password fields and does not return them from the API. The factory-wide chosen model is configuration only; this slice does not yet send inference requests.
++
++Open a project's details and choose **Choose AI model** to assign an available connected OpenCode model or a model from the latest successful Ollama discovery to that project. The selection is stored per project and revalidated against the provider catalog when saved. This configures ownership and selection only; Caliper does not yet invoke model inference.
++
++Choose **Choose AI model** from a project's details to assign an available connected OpenCode model or discovered Ollama model to that project. The selection is stored per project and revalidated against the provider catalog when saved. This configures ownership and selection only; Caliper does not yet invoke model inference.
+ 
+ ## Verify PostgreSQL persistence
+ 
+diff --git a/backend/migrations/versions/0008_project_model.py b/backend/migrations/versions/0008_project_model.py
+new file mode 100644
+index 0000000..d6b073e
+--- /dev/null
++++ b/backend/migrations/versions/0008_project_model.py
+@@ -0,0 +1,34 @@
++"""Persist a model selection per project."""
++
++from collections.abc import Sequence
++
++import sqlalchemy as sa
++from alembic import op
++
++revision: str = "0008_project_model"
++down_revision: str | None = "0007_opencode_provider"
++branch_labels: str | Sequence[str] | None = None
++depends_on: str | Sequence[str] | None = None
++
++
++def upgrade() -> None:
++    op.create_table(
++        "project_model_settings",
++        sa.Column(
++            "project_id",
++            sa.Uuid(as_uuid=True),
++            sa.ForeignKey("projects.id", ondelete="CASCADE"),
++            primary_key=True,
++        ),
++        sa.Column("provider_type", sa.String(32), nullable=False),
++        sa.Column("provider_id", sa.String(128), nullable=False),
++        sa.Column("model_id", sa.String(256), nullable=False),
++        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
++        sa.CheckConstraint(
++            "provider_type IN ('ollama', 'opencode')", name="ck_project_model_provider_type"
++        ),
++    )
++
++
++def downgrade() -> None:
++    op.drop_table("project_model_settings")
+diff --git a/backend/src/caliper/adapters/postgres/models.py b/backend/src/caliper/adapters/postgres/models.py
+index 8f5cf59..ef9a0f3 100644
+--- a/backend/src/caliper/adapters/postgres/models.py
++++ b/backend/src/caliper/adapters/postgres/models.py
+@@ -37,6 +37,23 @@ class ProjectRow(Base):
+     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+ 
+ 
++class ProjectModelRow(Base):
++    __tablename__ = "project_model_settings"
++    __table_args__ = (
++        CheckConstraint(
++            "provider_type IN ('ollama', 'opencode')", name="ck_project_model_provider_type"
++        ),
++    )
++
++    project_id: Mapped[UUID] = mapped_column(
++        Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
++    )
++    provider_type: Mapped[str] = mapped_column(String(32), nullable=False)
++    provider_id: Mapped[str] = mapped_column(String(128), nullable=False)
++    model_id: Mapped[str] = mapped_column(String(256), nullable=False)
++    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
++
++
+ class AdminCredentialRow(Base):
+     __tablename__ = "admin_credential"
+     __table_args__ = (CheckConstraint("id = 1", name="ck_admin_credential_singleton"),)
+diff --git a/backend/src/caliper/adapters/postgres/project_model_repository.py b/backend/src/caliper/adapters/postgres/project_model_repository.py
+new file mode 100644
+index 0000000..510942d
+--- /dev/null
++++ b/backend/src/caliper/adapters/postgres/project_model_repository.py
+@@ -0,0 +1,63 @@
++from datetime import UTC, datetime
++from uuid import UUID
++
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from caliper.adapters.postgres.models import ProjectModelRow, ProjectRow
++from caliper.application.project_models import ProjectModelSelection
++
++
++class SqlProjectModelRepository:
++    def __init__(self, session: AsyncSession):
++        self._session = session
++
++    async def get(self, project_id: UUID) -> ProjectModelSelection | None:
++        if await self._session.get(ProjectRow, project_id) is None:
++            raise LookupError(str(project_id))
++        row = await self._session.get(ProjectModelRow, project_id)
++        await self._session.rollback()
++        return self._selection(row) if row else None
++
++    async def select(
++        self, project_id: UUID, provider_type: str, provider_id: str, model_id: str
++    ) -> ProjectModelSelection:
++        if await self._session.get(ProjectRow, project_id) is None:
++            raise LookupError(str(project_id))
++        row = await self._session.get(ProjectModelRow, project_id)
++        now = datetime.now(UTC)
++        if row is None:
++            row = ProjectModelRow(
++                project_id=project_id,
++                provider_type=provider_type,
++                provider_id=provider_id,
++                model_id=model_id,
++                updated_at=now,
++            )
++            self._session.add(row)
++        else:
++            row.provider_type = provider_type
++            row.provider_id = provider_id
++            row.model_id = model_id
++            row.updated_at = now
++        try:
++            await self._session.commit()
++        except Exception:
++            await self._session.rollback()
++            raise
++        return self._selection(row)
++
++    async def clear(self, project_id: UUID) -> None:
++        if await self._session.get(ProjectRow, project_id) is None:
++            raise LookupError(str(project_id))
++        row = await self._session.get(ProjectModelRow, project_id)
++        if row is not None:
++            await self._session.delete(row)
++            await self._session.commit()
++        else:
++            await self._session.rollback()
++
++    @staticmethod
++    def _selection(row: ProjectModelRow) -> ProjectModelSelection:
++        return ProjectModelSelection(
++            row.provider_type, row.provider_id, row.model_id, row.updated_at
++        )
+diff --git a/backend/src/caliper/api/project_models.py b/backend/src/caliper/api/project_models.py
+new file mode 100644
+index 0000000..dc413ca
+--- /dev/null
++++ b/backend/src/caliper/api/project_models.py
+@@ -0,0 +1,180 @@
++from datetime import datetime
++from typing import Annotated, Literal
++from uuid import UUID
++
++from fastapi import APIRouter, Depends, HTTPException, Request, status
++from pydantic import BaseModel, Field
++from sqlalchemy.ext.asyncio import AsyncSession
++
++from caliper.adapters.ollama.discovery import OllamaHttpDiscoveryAdapter
++from caliper.adapters.opencode.client import OpenCodeHttpAdapter
++from caliper.adapters.postgres.database import get_session
++from caliper.adapters.postgres.ollama_settings_repository import SqlOllamaSettingsRepository
++from caliper.adapters.postgres.opencode_settings_repository import (
++    SqlOpenCodeSettingsRepository,
++)
++from caliper.adapters.postgres.project_model_repository import SqlProjectModelRepository
++from caliper.api.auth import require_admin
++from caliper.application.ollama_provider import OllamaProvider
++from caliper.application.opencode_provider import OpenCodeProvider
++from caliper.application.project_models import (
++    AvailableProjectModel,
++    ProjectModels,
++    ProjectModelSelection,
++    ProjectModelUnavailable,
++)
++
++router = APIRouter(
++    prefix="/api/projects/{project_id}/model",
++    tags=["project model"],
++    dependencies=[Depends(require_admin)],
++)
++
++
++class ModelOption(BaseModel):
++    provider_type: Literal["ollama", "opencode"]
++    provider_id: str
++    provider_name: str
++    model_id: str
++    model_name: str
++
++
++class SelectionInput(BaseModel):
++    provider_type: Literal["ollama", "opencode"]
++    provider_id: str = Field(min_length=1, max_length=128)
++    model_id: str = Field(min_length=1, max_length=256)
++
++
++class SelectionOutput(BaseModel):
++    provider_type: str
++    provider_id: str
++    model_id: str
++    updated_at: datetime
++
++
++class ProjectModelOutput(BaseModel):
++    selection: SelectionOutput | None
++    options: list[ModelOption]
++
++
++async def _options(session: AsyncSession, request: Request) -> list[ModelOption]:
++    runtime = request.app.state.opencode_runtime
++    opencode = OpenCodeProvider(
++        SqlOpenCodeSettingsRepository(session),
++        request.app.state.opencode_secret_store,
++        OpenCodeHttpAdapter(runtime.base_url),
++        runtime,
++    )
++    ollama = OllamaProvider(SqlOllamaSettingsRepository(session), OllamaHttpDiscoveryAdapter())
++    opencode_snapshot = await opencode.snapshot()
++    connected = set(opencode_snapshot["connected_provider_ids"])
++    result = [
++        ModelOption(
++            provider_type="opencode",
++            provider_id=provider["id"],
++            provider_name=provider["name"],
++            model_id=model["id"],
++            model_name=model["name"],
++        )
++        for provider in opencode_snapshot["providers"]
++        if provider["id"] in connected
++        for model in provider["models"]
++    ]
++    settings = await ollama.settings()
++    if settings.status == "reachable":
++        result.extend(
++            ModelOption(
++                provider_type="ollama",
++                provider_id="ollama",
++                provider_name="Ollama",
++                model_id=model,
++                model_name=model,
++            )
++            for model in settings.models
++        )
++    return result
++
++
++def _application_options(options: list[ModelOption]) -> list[AvailableProjectModel]:
++    return [AvailableProjectModel(**option.model_dump()) for option in options]
++
++
++def _http_options(options: list[AvailableProjectModel]) -> list[ModelOption]:
++    return [
++        ModelOption(
++            provider_type=option.provider_type,
++            provider_id=option.provider_id,
++            provider_name=option.provider_name,
++            model_id=option.model_id,
++            model_name=option.model_name,
++        )
++        for option in options
++    ]
++
++
++def _selection_output(selection: ProjectModelSelection | None) -> SelectionOutput | None:
++    if selection is None:
++        return None
++    return SelectionOutput(
++        provider_type=selection.provider_type,
++        provider_id=selection.provider_id,
++        model_id=selection.model_id,
++        updated_at=selection.updated_at,
++    )
++
++
++@router.get("", response_model=ProjectModelOutput)
++async def get_project_model(
++    project_id: UUID,
++    request: Request,
++    session: Annotated[AsyncSession, Depends(get_session)],
++) -> ProjectModelOutput:
++    options = _application_options(await _options(session, request))
++    try:
++        selection, available = await ProjectModels(SqlProjectModelRepository(session)).get(
++            project_id, options
++        )
++    except LookupError as error:
++        raise HTTPException(status_code=404, detail="Project not found") from error
++    return ProjectModelOutput(
++        selection=_selection_output(selection), options=_http_options(available)
++    )
++
++
++@router.put("", response_model=ProjectModelOutput)
++async def select_project_model(
++    project_id: UUID,
++    payload: SelectionInput,
++    request: Request,
++    session: Annotated[AsyncSession, Depends(get_session)],
++) -> ProjectModelOutput:
++    options = _application_options(await _options(session, request))
++    try:
++        selection, available = await ProjectModels(SqlProjectModelRepository(session)).select(
++            project_id,
++            provider_type=payload.provider_type,
++            provider_id=payload.provider_id,
++            model_id=payload.model_id,
++            options=options,
++        )
++    except LookupError as error:
++        if isinstance(error, ProjectModelUnavailable):
++            raise HTTPException(
++                status_code=status.HTTP_409_CONFLICT,
++                detail="Connect the provider and choose a model from its current catalog",
++            ) from error
++        raise HTTPException(status_code=404, detail="Project not found") from error
++    return ProjectModelOutput(
++        selection=_selection_output(selection), options=_http_options(available)
++    )
++
++
++@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
++async def clear_project_model(
++    project_id: UUID,
++    session: Annotated[AsyncSession, Depends(get_session)],
++) -> None:
++    try:
++        await ProjectModels(SqlProjectModelRepository(session)).clear(project_id)
++    except LookupError as error:
++        raise HTTPException(status_code=404, detail="Project not found") from error
+diff --git a/backend/src/caliper/application/project_models.py b/backend/src/caliper/application/project_models.py
+new file mode 100644
+index 0000000..a39bdaf
+--- /dev/null
++++ b/backend/src/caliper/application/project_models.py
+@@ -0,0 +1,69 @@
++from collections.abc import Sequence
++from dataclasses import dataclass
++from datetime import datetime
++from typing import Protocol
++from uuid import UUID
++
++
++@dataclass(frozen=True, slots=True)
++class AvailableProjectModel:
++    provider_type: str
++    provider_id: str
++    provider_name: str
++    model_id: str
++    model_name: str
++
++
++@dataclass(frozen=True, slots=True)
++class ProjectModelSelection:
++    provider_type: str
++    provider_id: str
++    model_id: str
++    updated_at: datetime
++
++
++class ProjectModelRepository(Protocol):
++    async def get(self, project_id: UUID) -> ProjectModelSelection | None: ...
++    async def select(
++        self, project_id: UUID, provider_type: str, provider_id: str, model_id: str
++    ) -> ProjectModelSelection: ...
++    async def clear(self, project_id: UUID) -> None: ...
++
++
++class ProjectModelUnavailable(LookupError):
++    pass
++
++
++class ProjectModels:
++    def __init__(self, repository: ProjectModelRepository):
++        self._repository = repository
++
++    async def get(
++        self, project_id: UUID, options: Sequence[AvailableProjectModel]
++    ) -> tuple[ProjectModelSelection | None, list[AvailableProjectModel]]:
++        return await self._repository.get(project_id), list(options)
++
++    async def select(
++        self,
++        project_id: UUID,
++        *,
++        provider_type: str,
++        provider_id: str,
++        model_id: str,
++        options: Sequence[AvailableProjectModel],
++    ) -> tuple[ProjectModelSelection, list[AvailableProjectModel]]:
++        if not any(
++            item.provider_type == provider_type
++            and item.provider_id == provider_id
++            and item.model_id == model_id
++            for item in options
++        ):
++            raise ProjectModelUnavailable("Choose a model from the current provider catalog")
++        await self._repository.select(project_id, provider_type, provider_id, model_id)
++        fresh = await self._repository.get(project_id)
++        if fresh is None:
++            raise RuntimeError("Committed project model selection was not found on fresh read")
++        return fresh, list(options)
++
++    async def clear(self, project_id: UUID) -> None:
++        await self._repository.clear(project_id)
+diff --git a/backend/src/caliper/main.py b/backend/src/caliper/main.py
+index e047f4c..4f5a146 100644
+--- a/backend/src/caliper/main.py
++++ b/backend/src/caliper/main.py
+@@ -18,6 +18,7 @@ from caliper.api.auth import router as auth_router
+ from caliper.api.credentials import router as credentials_router
+ from caliper.api.ollama_provider import router as ollama_provider_router
+ from caliper.api.opencode_provider import router as opencode_provider_router
++from caliper.api.project_models import router as project_models_router
+ from caliper.api.projects import router as projects_router
+ from caliper.api.repository_sync import router as repository_sync_router
+ from caliper.application.secret_store import SecretStoreError
+@@ -57,6 +58,7 @@ app = FastAPI(
+     lifespan=lifespan,
+ )
+ app.include_router(projects_router)
++app.include_router(project_models_router)
+ app.include_router(auth_router)
+ app.include_router(credentials_router)
+ app.include_router(repository_sync_router)
+diff --git a/backend/tests/test_projects_postgres.py b/backend/tests/test_projects_postgres.py
+index ce61f04..0586f23 100644
+--- a/backend/tests/test_projects_postgres.py
++++ b/backend/tests/test_projects_postgres.py
+@@ -106,6 +106,44 @@ def test_project_crud_is_durable_and_fresh_read_matches(client: TestClient):
+     assert client.get(f"/api/projects/{project_id}").status_code == 404
+ 
+ 
++def test_project_model_selection_is_catalog_validated_and_persisted(client, monkeypatch):
++    from caliper.api import project_models
++
++    async def available_models(_session, _request):
++        return [
++            project_models.ModelOption(
++                provider_type="opencode",
++                provider_id="test-provider",
++                provider_name="Test Provider",
++                model_id="test-provider/test-model",
++                model_name="Test Model",
++            )
++        ]
++
++    monkeypatch.setattr(project_models, "_options", available_models)
++    project = client.post("/api/projects", json={"name": "Model assignment"}).json()
++    other_project = client.post("/api/projects", json={"name": "Independent project"}).json()
++    path = f"/api/projects/{project['id']}/model"
++    payload = {
++        "provider_type": "opencode",
++        "provider_id": "test-provider",
++        "model_id": "test-provider/test-model",
++    }
++
++    assert client.get(path).json()["selection"] is None
++    assert len(client.get(path).json()["options"]) == 1
++    saved = client.put(path, json=payload)
++    assert saved.status_code == 200
++    assert saved.json()["selection"]["model_id"] == payload["model_id"]
++    assert client.get(path).json()["selection"] == saved.json()["selection"]
++    assert client.get(f"/api/projects/{other_project['id']}/model").json()["selection"] is None
++
++    invalid = client.put(path, json={**payload, "model_id": "not-in-catalog"})
++    assert invalid.status_code == 409
++    assert client.delete(path).status_code == 204
++    assert client.get(path).json()["selection"] is None
++
++
+ def test_project_validation_and_missing_delete(client: TestClient):
+     assert client.post("/api/projects", json={"name": "   "}).status_code == 422
+     assert (
+diff --git a/docs/INITIAL_ACCEPTANCE_CRITERIA.md b/docs/INITIAL_ACCEPTANCE_CRITERIA.md
+index e93efa3..6f954ac 100644
+--- a/docs/INITIAL_ACCEPTANCE_CRITERIA.md
++++ b/docs/INITIAL_ACCEPTANCE_CRITERIA.md
+@@ -28,6 +28,7 @@ Do not expand into broad autonomous execution until these gates pass.
+ - [x] Provider login has a documented supported flow and honest unsupported-provider behavior.
+ - [ ] Ollama endpoint validation and model discovery work where supported.
+ - [x] OpenCode CLI/auth/model configuration is validated.
++- [ ] A connected/discovered model can be assigned to one project, persisted, read fresh, and cleared without affecting another project.
+ - [x] Each adapter has independent tests and actionable errors.
+ 
+ ## Quality gates
+diff --git a/docs/WORK_LOG.md b/docs/WORK_LOG.md
+index ffab95a..4e9e724 100644
+--- a/docs/WORK_LOG.md
++++ b/docs/WORK_LOG.md
+@@ -276,3 +276,17 @@ Every implementation session records: date, branch, exact commands, results, ski
+   - `git diff --check` → passed.
+ - **Skipped / limitations:** The provider settings panel remained unresponsive in a browser-driven attempt even after 120 seconds, so it is not part of the passing browser scenario; OpenCode credential/model operations are verified by the PostgreSQL integration suite and provider controls by frontend tests. A temporary Ollama Docker image pull did not finish in the available time; the attempt was interrupted before a test container or live endpoint was created. No real provider account/credential was used. The remaining acceptance gate is live Ollama network/model discovery.
+ - **Manual prerequisites:** Configure a reachable Ollama endpoint to complete its live network/model-discovery gate; authorize a real provider account to verify external OAuth/API access.
++
++## 2026-10-24 — Per-project AI model selection
++
++- **Branch:** `feature/project-model-selection` (based on `feature/opencode-cli`).
++- **What:** Added a project-owned PostgreSQL model assignment, authenticated API endpoints that offer models only from connected OpenCode providers or the latest successful Ollama discovery, and a project details control for selecting/clearing the assignment. Added accepted decision D-021, graph responsibility, migration `0008_project_model`, UI coverage, and PostgreSQL API coverage. This is model configuration only; inference remains out of scope.
++- **Commands and results:**
++  - `pnpm.cmd test -- --pool=forks --maxWorkers=1 --minWorkers=1` → **14 passed** across 6 suites, including project model save/read UI behavior.
++  - `pnpm.cmd run build` → passed (TypeScript and Vite production build).
++  - `uv run ruff check src tests migrations` → passed.
++  - `uv run ruff format --check src tests migrations` → passed (70 files formatted).
++  - `CALIPER_DATABASE_URL=postgresql+psycopg://caliper:offline-validation@localhost/caliper_test uv run alembic upgrade head --sql` → passed; generated migration chain through `0008_project_model` without connecting to a database.
++  - `git diff --check` → passed.
++- **Skipped / limitations:** The local Docker Linux engine is unavailable. The PostgreSQL API persistence test and real migration application could not run here; they are required before marking the acceptance criterion passed. The running host does not receive this feature until the branch is published and its API/web images are rebuilt.
++- **Manual prerequisites:** Configure and connect an OpenCode provider or validate Ollama discovery before assigning a project model.
+diff --git a/docs/reports/012-project-model-selection.md b/docs/reports/012-project-model-selection.md
+new file mode 100644
+index 0000000..a7fcb59
+--- /dev/null
++++ b/docs/reports/012-project-model-selection.md
+@@ -0,0 +1,24 @@
++# Per-project AI model selection
++
++**Status:** Implemented in the source branch; frontend behavior and production build verified. PostgreSQL-backed persistence and migration application are pending a Linux Docker host run.
++
++## Delivered
++
++- Added a project-owned model assignment row with a cascading project foreign key and constrained provider type.
++- Added administrator-protected project model endpoints. The catalog contains only models from connected OpenCode providers and the latest successful Ollama discovery. Writes reject stale or invented catalog entries, commit to PostgreSQL, then return a fresh read.
++- Added **Choose AI model** to project details. The administrator can assign or clear a project model and refresh available catalogs without leaving the project.
++- Added decision D-021, graph responsibility, migration `0008_project_model`, README guidance, and an unchecked acceptance gate until PostgreSQL verification passes.
++
++## Verification
++
++- Frontend tests: **14 passed** across 6 suites, including save and server-confirmed UI update for project model selection.
++- TypeScript and Vite production build passed.
++- Ruff check and formatting passed.
++- Offline Alembic SQL generation passed through `0008_project_model`; no database was contacted.
++- `git diff --check` → passed.
++
++## Boundaries and remaining checks
++
++- This feature stores configuration and does not invoke model inference.
++- Real PostgreSQL integration for project-scoped isolation, persisted fresh reads, catalog rejection, clear behavior, and the applied migration must run on the Linux host.
++- OpenCode provider authentication still requires an administrator's provider account and consent; Ollama options require a successful model discovery.
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index 2445238..8a96b8d 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -6,6 +6,7 @@ import { CredentialManager } from './components/CredentialManager'
+ import { PrinciplesWorkspace } from './components/PrinciplesWorkspace'
+ import { OllamaProviderManager } from './components/OllamaProviderManager'
+ import { OpenCodeProviderManager } from './components/OpenCodeProviderManager'
++import { ProjectModelManager } from './components/ProjectModelManager'
+ import { RepositorySyncManager } from './components/RepositorySyncManager'
+ 
+ type Project = {
+@@ -44,6 +45,7 @@ function App() {
+   const [showPrinciplesWorkspace, setShowPrinciplesWorkspace] = useState(false)
+   const [showOllamaSettings, setShowOllamaSettings] = useState(false)
+   const [showOpenCodeSettings, setShowOpenCodeSettings] = useState(false)
++  const [showProjectModel, setShowProjectModel] = useState(false)
+   const [error, setError] = useState('')
+   const [notice, setNotice] = useState('')
+   const [authReady, setAuthReady] = useState(false)
+@@ -252,6 +254,7 @@ function App() {
+     setShowCredentialManager(false)
+     setShowRepositorySync(false)
+     setShowPrinciplesWorkspace(false)
++    setShowProjectModel(false)
+   }
+ 
+   const projectCount = projects.length
+@@ -404,6 +407,8 @@ function App() {
+                       <PrinciplesWorkspace projectId={selectedProject.id} onClose={() => setShowPrinciplesWorkspace(false)} />
+                     ) : showCredentialManager ? (
+                       <CredentialManager projectId={selectedProject.id} onClose={() => setShowCredentialManager(false)} />
++                    ) : showProjectModel ? (
++                      <ProjectModelManager projectId={selectedProject.id} onClose={() => setShowProjectModel(false)} />
+                     ) : <>
+                     <dl className="project-detail-list">
+                       <div><dt>Description</dt><dd>{selectedProject.description || 'No description yet.'}</dd></div>
+@@ -415,6 +420,7 @@ function App() {
+                     <div className="dialog-actions">
+                       <Button variant="outline" size="sm" type="button" onClick={() => setShowRepositorySync(true)}>Repository knowledge</Button>
+                       <Button variant="outline" size="sm" type="button" onClick={() => setShowPrinciplesWorkspace(true)}>Principles workspace</Button>
++                      <Button variant="outline" size="sm" type="button" onClick={() => setShowProjectModel(true)}>Choose AI model</Button>
+                       <Button variant="outline" size="sm" type="button" onClick={() => setShowCredentialManager(true)}>Manage credentials</Button>
+                       <Button variant="outline" size="sm" type="button" onClick={() => { setDialogError(''); setDialogMode('delete') }}><Trash2 size={15} />Delete project</Button>
+                       <Button variant="default" size="sm" type="button" onClick={beginEdit}><Pencil size={15} />Edit project</Button>
+diff --git a/web/src/components/ProjectModelManager.test.tsx b/web/src/components/ProjectModelManager.test.tsx
+new file mode 100644
+index 0000000..ab77f26
+--- /dev/null
++++ b/web/src/components/ProjectModelManager.test.tsx
+@@ -0,0 +1,40 @@
++import { render, screen, waitFor } from '@testing-library/react'
++import userEvent from '@testing-library/user-event'
++import { afterEach, describe, expect, it, vi } from 'vitest'
++import { ProjectModelManager } from './ProjectModelManager'
++
++const option = {
++  provider_type: 'opencode',
++  provider_id: 'openai',
++  provider_name: 'OpenAI',
++  model_id: 'openai/gpt-test',
++  model_name: 'GPT Test',
++}
++
++function response(data: unknown, status = 200): Response {
++  return { ok: status >= 200 && status < 300, status, json: async () => data } as Response
++}
++
++afterEach(() => vi.unstubAllGlobals())
++
++describe('project model assignment', () => {
++  it('saves and displays the server-confirmed project model without a reload', async () => {
++    const selected = { ...option, updated_at: '2026-10-24T12:00:00Z' }
++    const fetchMock = vi.fn()
++      .mockResolvedValueOnce(response({ selection: null, options: [option] }))
++      .mockResolvedValueOnce(response({ selection: selected, options: [option] }))
++    vi.stubGlobal('fetch', fetchMock)
++    const user = userEvent.setup()
++    render(<ProjectModelManager projectId="project-1" onClose={() => undefined} />)
++
++    await user.selectOptions(await screen.findByLabelText('Available provider model'), JSON.stringify([
++      option.provider_type, option.provider_id, option.model_id,
++    ]))
++    await user.click(screen.getByRole('button', { name: 'Save for this project' }))
++
++    expect(await screen.findByRole('status')).toHaveTextContent('Model selection saved for this project.')
++    expect(screen.getByText(/Current: OpenAI · GPT Test/)).toBeInTheDocument()
++    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
++    expect(fetchMock).toHaveBeenLastCalledWith('/api/projects/project-1/model', expect.objectContaining({ method: 'PUT' }))
++  })
++})
+diff --git a/web/src/components/ProjectModelManager.tsx b/web/src/components/ProjectModelManager.tsx
+new file mode 100644
+index 0000000..d4b2fde
+--- /dev/null
++++ b/web/src/components/ProjectModelManager.tsx
+@@ -0,0 +1,123 @@
++import { useEffect, useState } from 'react'
++
++type ModelOption = {
++  provider_type: 'ollama' | 'opencode'
++  provider_id: string
++  provider_name: string
++  model_id: string
++  model_name: string
++}
++type Selection = Pick<ModelOption, 'provider_type' | 'provider_id' | 'model_id'> & {
++  updated_at: string
++}
++type Snapshot = { selection: Selection | null; options: ModelOption[] }
++
++function valueFor(model: Pick<ModelOption, 'provider_type' | 'provider_id' | 'model_id'>) {
++  return JSON.stringify([model.provider_type, model.provider_id, model.model_id])
++}
++
++export function ProjectModelManager({
++  projectId,
++  onClose,
++}: {
++  projectId: string
++  onClose: () => void
++}) {
++  const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
++  const [selected, setSelected] = useState('')
++  const [loading, setLoading] = useState(true)
++  const [busy, setBusy] = useState(false)
++  const [error, setError] = useState('')
++  const [notice, setNotice] = useState('')
++
++  async function reload() {
++    setLoading(true)
++    setError('')
++    try {
++      const response = await fetch(`/api/projects/${projectId}/model`)
++      if (!response.ok) throw new Error('Could not load the project model settings.')
++      const fresh = await response.json() as Snapshot
++      setSnapshot(fresh)
++      setSelected(fresh.selection ? valueFor(fresh.selection) : '')
++    } catch (cause) {
++      setError(cause instanceof Error ? cause.message : 'Could not load the project model settings.')
++    } finally {
++      setLoading(false)
++    }
++  }
++
++  useEffect(() => { void reload() }, [projectId])
++
++  async function save() {
++    if (!selected || !snapshot) return
++    const [provider_type, provider_id, model_id] = JSON.parse(selected) as [string, string, string]
++    setBusy(true)
++    setError('')
++    setNotice('')
++    try {
++      const response = await fetch(`/api/projects/${projectId}/model`, {
++        method: 'PUT',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify({ provider_type, provider_id, model_id }),
++      })
++      if (!response.ok) {
++        const result = await response.json().catch(() => null) as { detail?: string } | null
++        throw new Error(result?.detail ?? 'The project model was not saved.')
++      }
++      const fresh = await response.json() as Snapshot
++      setSnapshot(fresh)
++      setSelected(fresh.selection ? valueFor(fresh.selection) : '')
++      setNotice('Model selection saved for this project.')
++    } catch (cause) {
++      setError(cause instanceof Error ? cause.message : 'The project model was not saved.')
++    } finally {
++      setBusy(false)
++    }
++  }
++
++  async function clear() {
++    setBusy(true)
++    setError('')
++    setNotice('')
++    try {
++      const response = await fetch(`/api/projects/${projectId}/model`, { method: 'DELETE' })
++      if (!response.ok) throw new Error('The project model selection could not be cleared.')
++      await reload()
++      setNotice('Project model selection cleared.')
++    } catch (cause) {
++      setError(cause instanceof Error ? cause.message : 'The project model selection could not be cleared.')
++    } finally {
++      setBusy(false)
++    }
++  }
++
++  const current = snapshot?.selection
++  const currentOption = current && snapshot?.options.find((option) => valueFor(option) === valueFor(current))
++
++  return (
++    <section className="project-model-manager" aria-labelledby="project-model-title">
++      <div className="credential-manager-heading">
++        <div><span className="section-kicker">PROJECT CONFIGURATION</span><h3 id="project-model-title">AI model for this project</h3></div>
++        <button type="button" className="dialog-close" aria-label="Back to project details" onClick={onClose}>×</button>
++      </div>
++      <p className="credential-help">Choose an available model specifically for this project. Configure provider access under Ollama or AI providers first.</p>
++      {error && <p className="auth-error" role="alert">{error}</p>}
++      {notice && <p className="credential-notice" role="status">{notice}</p>}
++      {loading ? <p role="status">Loading available models…</p> : <>
++        {current && <p className="credential-help">Current: {currentOption ? `${currentOption.provider_name} · ${currentOption.model_name}` : `${current.provider_type} · ${current.model_id}`} (saved {new Date(current.updated_at).toLocaleString()})</p>}
++        {snapshot?.options.length ? <>
++          <label htmlFor="project-ai-model">Available provider model</label>
++          <select id="project-ai-model" value={selected} onChange={(event) => setSelected(event.target.value)} disabled={busy}>
++            <option value="">Choose a model</option>
++            {snapshot.options.map((option) => <option key={valueFor(option)} value={valueFor(option)}>{option.provider_name} · {option.model_name}</option>)}
++          </select>
++          <div className="dialog-actions">
++        <button className="button button-primary" type="button" onClick={() => void save()} disabled={busy || !selected}>{busy ? 'Saving…' : 'Save for this project'}</button>
++            {current && <button className="button button-quiet" type="button" onClick={() => void clear()} disabled={busy}>Clear selection</button>}
++          </div>
++        </> : <p className="empty-state">No connected provider models are available yet. Connect an OpenCode provider or validate an Ollama endpoint, then refresh this panel.</p>}
++        <button className="button button-quiet" type="button" onClick={() => void reload()} disabled={busy}>Refresh available models</button>
++      </>}
++    </section>
++  )
++}
+diff --git a/web/src/styles.css b/web/src/styles.css
+index 0afca05..09acf13 100644
+--- a/web/src/styles.css
++++ b/web/src/styles.css
+@@ -49,3 +49,4 @@
+ @media(max-width:760px){.workspace-source{grid-template-columns:1fr 1fr}.workspace-source>div:first-child,.workspace-source>div:nth-child(4){grid-column:span 2}.workspace-document-layout{grid-template-columns:1fr;max-height:62vh}.workspace-document-nav{max-height:170px;border-right:0;border-bottom:1px solid var(--line)}.workspace-markdown{min-height:210px;padding:15px}.workspace-toolbar{align-items:flex-start;flex-direction:column}.workspace-graph-canvas svg{min-width:760px}}
+ .decision-card{margin:14px 0;padding:4px 16px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:0 4px 16px #18312806}.decision-card h2{margin-top:13px!important;padding-bottom:8px;border-bottom:0!important}.decision-card h3{color:#64766b}.decision-card ul{padding-left:20px}.decision-card li{padding:2px 0}
+ .nav-button{width:100%;border:0;background:transparent;text-align:left;cursor:pointer}.nav-button:hover{background:#f1f6f3;color:#1a654e}.ollama-dialog{width:min(100%,620px)}.ollama-manager{max-height:75vh;overflow:auto}.ollama-status{margin:14px 0}.ollama-status>div{grid-template-columns:130px minmax(0,1fr)}.ollama-manager .credential-form select,.ollama-model-selection select,.ollama-manager>select{width:100%;padding:9px;border:1px solid #dce4df;border-radius:5px;background:white;color:#304238;font-size:11px}.ollama-model-selection{display:grid;gap:7px;padding-top:15px}.ollama-model-selection label{font-size:11px;font-weight:600;color:#42534a}.provider-disconnect{margin-top:12px;border:1px solid #e8c5c0;border-radius:5px;padding:7px 10px;background:#fff;color:#a13d35;font-size:11px;cursor:pointer}.ollama-manager .credential-actions a{font-size:11px;color:#19775c}
++.project-model-manager{display:grid;gap:10px}.project-model-manager label{font-size:11px;font-weight:600;color:#42534a}.project-model-manager select{width:100%;padding:10px;border:1px solid #dce4df;border-radius:6px;background:#fff;color:#304238;font-size:12px}.project-model-manager .dialog-actions{justify-content:flex-start;margin:8px 0}.project-model-manager .empty-state{padding:14px;border:1px solid var(--line);border-radius:7px;background:#f8faf9;color:var(--muted);font-size:12px;line-height:1.55}
+-- 
+2.49.0.windows.1
+
