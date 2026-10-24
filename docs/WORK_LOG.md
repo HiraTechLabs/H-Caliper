@@ -210,3 +210,18 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed before final review.
 - **Skipped / limitations:** Docker's Linux engine is unavailable on this workstation, and GnuPG is not installed here. Backup/restore execution, encrypted-volume archive operation, database replacement, and recovery/restart behavior were not run. Cross-store restore is not atomic; if interrupted, keep the API stopped and rerun the same complete bundle before resuming service. This acceptance gate remains open pending a Linux host restore drill.
 - **Manual prerequisites:** Install GnuPG on the Linux server, stop API writes, create a backup on encrypted storage, then restore only into the intended Compose project and verify administrator login, projects, and credentials. Keep keyring backup and passphrase separate from the other artifacts.
+
+## 2026-10-24 — Runtime acceptance and encrypted restore drill
+
+- **Branch:** `FIX/docker-apt-https` (based on the accepted backup/restore work).
+- **What:** Fixed the Docker build's Debian HTTPS package source, mounted backend tests and canonical graph data into the integration-test container, excluded frontend build/dependency output from its Docker context, flushed a newly enqueued task before inserting its foreign-key dependent sync row, and enabled Pydantic validation from knowledge-document dataclasses.
+- **Commands and results:**
+  - `docker compose --profile test run --build --rm integration-tests` → **41 passed**, 2 warnings, against the isolated PostgreSQL test database.
+  - Docker API and web image builds → passed; frontend tests → **11 passed**; `pnpm.cmd run build` → passed; backend Ruff check and format check → passed (57 files already formatted).
+  - Isolated `caliper-acceptance` Compose startup → PostgreSQL/API/web healthy; `/health/live` and `/health/ready` returned their distinct expected states.
+  - Authenticated project create/read/update/list via the live HTTPS API → passed. Recreated only the API container; it became healthy and returned the updated record from a fresh PostgreSQL read.
+  - `scripts/backup.sh` and `scripts/restore.sh` → passed against the isolated Compose project using GnuPG with separate temporary test passphrases. Deleted the acceptance record, restored the encrypted database and both secret volumes, restarted the API, then verified administrator login and a fresh read of the restored record.
+  - `$env:POSTGRES_PASSWORD='<test-only value>'; docker compose -p caliper-acceptance down` → removed acceptance containers/network without `-v`; named test volumes remain isolated and preserved. Temporary encrypted artifacts and passphrase files were removed.
+  - `git diff --check` → passed.
+- **Skipped / limitations:** A clean clone build and browser-driven end-to-end suite were not run. No live Ollama endpoint was available. Provider-login and OpenCode CLI integration remain unimplemented; these release gates must pass before the project plan is complete. Production LAN deployment was not changed. Architecture graph nodes remain `planned` until each responsibility has its required direct verification.
+- **Manual prerequisites:** None for the isolated PostgreSQL, runtime restart, or backup/restore checks recorded here. The remaining model-provider and browser end-to-end gates still need implementation and verification.

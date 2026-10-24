@@ -18,6 +18,8 @@ The keyring archive must use a separate, stronger passphrase and be stored with 
 - Compose configuration validation: **passed**.
 - `git diff --check`: **passed**.
 
-## Not verified here
+## Runtime verification update — 2026-10-24
 
-The workstation has no Docker Linux engine and no GnuPG installation, so no archive or restore was executed. The restore is intentionally destructive after explicit confirmation; it has not been applied to any user database or volume. Cross-store restore is not atomic. If interrupted, keep the API stopped and repeat the restore from the same complete bundle before allowing writes. The initial-acceptance backup/restore gate remains open until a Linux Docker restore drill validates the actual volumes and fresh application reads.
+The earlier workstation limitation was resolved. With Docker Engine 29.7.2 and Gpg4win available, the backup and restore scripts were run against the isolated Compose project `caliper-acceptance` only. The database, secret-data volume, and keyring volume were archived and encrypted with distinct test passphrases. The test project record was deleted, the bundle was restored, and the API was restarted; administrator login succeeded and a fresh API read returned the restored project with its updated values. No user database or user volume was used. The encrypted test bundle and temporary passphrase files were removed afterward; the named acceptance-test volumes were preserved.
+
+Cross-store restore is still not atomic. If a restore is interrupted, keep the API stopped and repeat the same complete bundle before allowing writes. Production recovery should use operator-managed passphrases and protected off-host storage.

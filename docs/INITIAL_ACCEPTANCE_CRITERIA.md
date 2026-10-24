@@ -4,17 +4,17 @@ Do not expand into broad autonomous execution until these gates pass.
 
 ## Runtime and persistence
 - [ ] Clean checkout builds reproducibly.
-- [ ] Application and PostgreSQL start using documented container configuration.
-- [ ] Health checks distinguish liveness from readiness.
-- [ ] Data survives app-container recreation/restart.
-- [ ] Backup and restore are documented and tested.
+- [x] Application and PostgreSQL start using documented container configuration.
+- [x] Health checks distinguish liveness from readiness.
+- [x] Data survives app-container recreation/restart.
+- [x] Backup and restore are documented and tested.
 
 ## Projects and credentials
-- [ ] Project create/read/update/delete behavior is tested and documented.
-- [ ] Mutations are immediately visible after server-confirmed success.
-- [ ] Fresh reads return the same state.
-- [ ] Credential add/validate/replace/disable/delete semantics are explicit and tested.
-- [ ] Secrets never appear in UI, API responses, logs, or reports.
+- [x] Project create/read/update/delete behavior is tested and documented.
+- [x] Mutations are immediately visible after server-confirmed success.
+- [x] Fresh reads return the same state.
+- [x] Credential add/validate/replace/disable/delete semantics are explicit and tested.
+- [x] Secrets never appear in UI, API responses, logs, or reports.
 - [ ] Repository status distinguishes configuration from verified remote access.
 
 ## Knowledge sync and workspace
@@ -31,9 +31,9 @@ Do not expand into broad autonomous execution until these gates pass.
 - [ ] Each adapter has independent tests and actionable errors.
 
 ## Quality gates
-- [ ] PostgreSQL-backed integration tests pass.
+- [x] PostgreSQL-backed integration tests pass.
 - [ ] Critical UI end-to-end tests pass.
-- [ ] Lint/type/build checks pass.
-- [ ] Docker build/startup checks pass.
-- [ ] Graph consistency checks pass.
+- [x] Lint/type/build checks pass.
+- [x] Docker build/startup checks pass.
+- [x] Graph consistency checks pass.
 - [ ] Report distinguishes verified behavior from blocked/manual checks.

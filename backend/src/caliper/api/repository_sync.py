@@ -48,6 +48,8 @@ class SyncOutput(BaseModel):
 
 
 class KnowledgeOutput(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     path: str
     revision: str
     sha256: str

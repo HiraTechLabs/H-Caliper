@@ -109,6 +109,7 @@ class SqlRepositorySyncRepository:
                 created_at=at,
             )
         )
+        await self._session.flush()
         if row is None:
             row = ProjectSyncRow(
                 project_id=project_id,

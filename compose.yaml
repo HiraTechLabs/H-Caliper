@@ -109,7 +109,10 @@ services:
     build:
       context: ./backend
     profiles: ["test"]
-    command: ["uv", "run", "--group", "dev", "pytest", "-q"]
+    command: ["uv", "run", "--group", "dev", "pytest", "-q", "backend/tests"]
+    volumes:
+      - ./backend/tests:/app/backend/tests:ro
+      - ./.caliper:/app/.caliper:ro
     environment:
       CALIPER_DB_USER: ${POSTGRES_USER:-caliper}
       CALIPER_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your environment}
