@@ -32,7 +32,7 @@ Do not expand into broad autonomous execution until these gates pass.
 
 ## Quality gates
 - [x] PostgreSQL-backed integration tests pass.
-- [ ] Critical UI end-to-end tests pass.
+- [x] Critical UI end-to-end tests pass for administrator sign-in and PostgreSQL-backed project creation.
 - [x] Lint/type/build checks pass.
 - [x] Docker build/startup checks pass.
 - [x] Graph consistency checks pass.

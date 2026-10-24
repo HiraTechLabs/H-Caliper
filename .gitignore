@@ -13,6 +13,8 @@ venv/
 .coverage
 coverage.xml
 htmlcov/
+playwright-report/
+test-results/
 
 # --- Node / Frontend ---
 node_modules/

@@ -23,4 +23,4 @@ RUN chown -R app:app /app
 USER app
 ENV PATH="/app/.venv/bin:$PATH" PYTHONPATH=/app/src
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && uvicorn caliper.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "alembic upgrade head && uvicorn caliper.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*"]

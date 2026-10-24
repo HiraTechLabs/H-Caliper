@@ -261,3 +261,18 @@ Every implementation session records: date, branch, exact commands, results, ski
   - Updated the clean-checkout acceptance gate to passed based on this build.
 - **Skipped / limitations:** The clone verification covers container builds for the API and web services; it does not claim that user-specific server `.env` or LAN/firewall configuration can be reproduced from the repository.
 - **Manual prerequisites:** None for the source build. Set server-local Compose environment values on each host as described in the README.
+
+## 2026-10-24 — Browser acceptance and HTTPS proxy handling
+
+- **Branch:** `feature/opencode-cli`.
+- **What:** Added a disposable Playwright workflow that starts a uniquely named Docker Compose stack with random administrator/database credentials, seeds and verifies the administrator through stdin, checks browser sign-in and PostgreSQL-backed project creation, and removes only its own containers, network, and volumes. Added Playwright Chromium setup and ignored its generated reports. Enabled Uvicorn proxy-header handling for the private Compose reverse-proxy path; this fixes origin validation for HTTPS requests forwarded by Caddy.
+- **Commands and results:**
+  - `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/e2e.ps1` → **1 passed**; login, project create, persisted success notice and project rendering verified, then the isolated stack and volumes were removed.
+  - `docker compose --profile test run --build --rm integration-tests` → **48 passed**, 2 warnings (previously recorded above).
+  - `docker compose build api web` → passed for the clean checkout (previously recorded above).
+  - `pnpm.cmd test` → **13 passed** across 5 frontend suites; Vitest excludes the dedicated Playwright directory.
+  - `pnpm.cmd run build` → TypeScript and Vite production build passed.
+  - `docker compose --profile test run --build --rm integration-tests` → **48 passed**, 2 warnings (previously recorded above).
+  - `git diff --check` → passed.
+- **Skipped / limitations:** The provider settings panel remained unresponsive in a browser-driven attempt even after 120 seconds, so it is not part of the passing browser scenario; OpenCode credential/model operations are verified by the PostgreSQL integration suite and provider controls by frontend tests. A temporary Ollama Docker image pull did not finish in the available time; the attempt was interrupted before a test container or live endpoint was created. No real provider account/credential was used. The remaining acceptance gate is live Ollama network/model discovery.
+- **Manual prerequisites:** Configure a reachable Ollama endpoint to complete its live network/model-discovery gate; authorize a real provider account to verify external OAuth/API access.
