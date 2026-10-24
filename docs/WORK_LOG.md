@@ -290,3 +290,13 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed.
 - **Skipped / limitations:** The local Docker Linux engine is unavailable. The PostgreSQL API persistence test and real migration application could not run here; they are required before marking the acceptance criterion passed. The running host does not receive this feature until the branch is published and its API/web images are rebuilt.
 - **Manual prerequisites:** Configure and connect an OpenCode provider or validate Ollama discovery before assigning a project model.
+
+## 2026-10-24 — Resilient frontend dependency fetch
+
+- **Branch:** `feature/project-model-selection`.
+- **What:** Reduced parallel package downloads in the web image build and configured pnpm to retry registry fetches with a longer timeout. This addresses intermittent npm registry timeouts observed while building the frontend on the LAN host.
+- **Commands and results:**
+  - `git diff --check` → passed.
+  - `docker compose build web` → not run in this Windows workspace; Linux Docker engine is unavailable here. Server build previously failed during registry metadata/tarball fetch, before the frontend build step.
+- **Skipped / limitations:** The mitigation needs validation by rebuilding the web image on the Linux host with registry access. It does not remove the network dependency or guarantee recovery from a prolonged registry outage.
+- **Manual prerequisites:** Fetch this commit on the server, then run `docker compose build web`; recreate the web container only after the build succeeds.
