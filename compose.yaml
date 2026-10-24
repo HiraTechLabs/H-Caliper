@@ -119,6 +119,16 @@ services:
       db-test:
         condition: service_healthy
 
+  volume-archive:
+    image: alpine:3.21
+    profiles: ["maintenance"]
+    entrypoint: ["sh", "-c"]
+    command: ["sleep infinity"]
+    volumes:
+      - caliper-secret-data:/source/secret-data
+      - caliper-keyring:/source/keyring
+    restart: "no"
+
 volumes:
   postgres-data:
   caddy-data:

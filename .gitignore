@@ -29,6 +29,10 @@ out/
 *.pem
 *.key
 secrets/
+backups/
+*.dump.gpg
+secret-data.tar.gz.gpg
+keyring.tar.gz.gpg
 
 # --- Databases & Runtime Data ---
 *.sqlite3

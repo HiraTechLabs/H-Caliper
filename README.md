@@ -95,7 +95,25 @@ For local backend development, install the locked dependencies with `uv sync`, s
 
 ## Back up and restore
 
-From a Bash-compatible shell, back up the operational database with `docker compose exec -T db pg_dump -U caliper -Fc caliper > caliper.dump`. Restore into a separately created database after stopping API writes with `docker compose exec -T db pg_restore -U caliper -d caliper --clean --if-exists < caliper.dump`. Keep backups encrypted and access-controlled. A restore has not yet been exercised as part of this initial slice.
+Run these commands on the Linux server from the project directory. Install Docker Compose and GnuPG (`gpg`). Stop API writes before the backup so the PostgreSQL dump and encrypted-secret volumes represent one consistent point in time:
+
+```bash
+docker compose stop api
+bash scripts/backup.sh /path/on/encrypted/storage/caliper-backups/$(date +%Y%m%d-%H%M%S)
+docker compose start api
+```
+
+The script creates separate AES-256 GnuPG-encrypted files for PostgreSQL, secret payloads, and the keyring. It prompts for each file; use one passphrase for the database and payload archive and a different, stronger passphrase for the keyring. Store the keyring backup and its passphrase separately with stricter access control. Keep the backup off-host. Also protect the project `.env` (database password) and Caddy internal-CA data/config volumes separately; these are not included. The script requires the database running and refuses to run while the API is active.
+
+To restore, first stop API writes, then run the restore command with the Compose project name shown by `docker compose ls`:
+
+```bash
+docker compose stop api
+bash scripts/restore.sh /path/to/caliper-backup PROJECT_NAME
+docker compose start api
+```
+
+The script checks that the named project matches the current database container, decrypts and validates all archive files before changing state, and requires typing `RESTORE-PROJECT_NAME`. It refuses to run while `api` or `secret-init` is active. It replaces the configured database and both secret volumes; do not run it against the wrong Compose project. After restore, verify administrator login, projects, and credentials before resuming service. Keep the source backup until those checks pass. Restore execution and volume recovery still require validation on the Linux Docker host before this acceptance gate can be marked complete.
 
 ## Current scope
 

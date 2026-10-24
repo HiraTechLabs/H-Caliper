@@ -199,3 +199,14 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed before final commit review.
 - **Skipped / limitations:** Docker Linux engine is unavailable; the new persistence integration case, applied migration, full backend suite, container startup, live Ollama reachability, and browser flow were not exercised. Inference and provider-account login are outside this slice.
 - **Manual prerequisites:** On the Linux host, run the isolated PostgreSQL integration profile and validate against a reachable Ollama endpoint before marking the graph node complete.
+
+## 2026-10-24 — Encrypted backup and guarded restore tooling
+
+- **Branch:** `feature/backup-restore` (based on `feature/ollama-provider` at `19ef70f`).
+- **What:** Added maintenance-only Compose volume access and Bash backup/restore scripts. The backup stops if API writes are active, creates a PostgreSQL custom dump and separate secret-data/keyring archives, encrypts each file with GnuPG AES-256, and restricts local file modes. Restore checks the exact Compose project, requires the database running and API/secret-init stopped, decrypts and checks all inputs before mutations, and requires typing the project-specific confirmation phrase. README covers passphrase separation and excluded `.env`/Caddy state.
+- **Commands and results:**
+  - `bash -n scripts/backup.sh scripts/restore.sh` → passed using Git Bash after sandbox IPC restrictions prevented its first in-sandbox launch.
+  - `$env:POSTGRES_PASSWORD='compose-validation-only'; docker compose config --quiet` → passed.
+  - `git diff --check` → passed before final review.
+- **Skipped / limitations:** Docker's Linux engine is unavailable on this workstation, and GnuPG is not installed here. Backup/restore execution, encrypted-volume archive operation, database replacement, and recovery/restart behavior were not run. Cross-store restore is not atomic; if interrupted, keep the API stopped and rerun the same complete bundle before resuming service. This acceptance gate remains open pending a Linux host restore drill.
+- **Manual prerequisites:** Install GnuPG on the Linux server, stop API writes, create a backup on encrypted storage, then restore only into the intended Compose project and verify administrator login, projects, and credentials. Keep keyring backup and passphrase separate from the other artifacts.
