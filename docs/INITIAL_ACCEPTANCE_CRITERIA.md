@@ -15,14 +15,14 @@ Do not expand into broad autonomous execution until these gates pass.
 - [x] Fresh reads return the same state.
 - [x] Credential add/validate/replace/disable/delete semantics are explicit and tested.
 - [x] Secrets never appear in UI, API responses, logs, or reports.
-- [ ] Repository status distinguishes configuration from verified remote access.
+- [x] Repository status distinguishes configuration from verified remote access.
 
 ## Knowledge sync and workspace
-- [ ] Sync a controlled local Git repository and record repository, branch, revision, timestamp, and outcome.
-- [ ] Change a source document, sync again, and see new content without manual refresh.
-- [ ] Failed sync is visible and does not claim fresh content.
-- [ ] Principles, Manifest, Decisions, and Graph are visually navigable.
-- [ ] Graph comes from graph.yaml and invalid references are reported.
+- [x] Sync a controlled local Git repository and record repository, branch, revision, timestamp, and outcome.
+- [x] Change a source document, sync again, and see new content without manual refresh.
+- [x] Failed sync is visible and does not claim fresh content.
+- [x] Principles, Manifest, Decisions, and Graph are visually navigable.
+- [x] Graph comes from graph.yaml and invalid references are reported.
 
 ## Model providers
 - [x] Provider login has a documented supported flow and honest unsupported-provider behavior.
@@ -36,4 +36,4 @@ Do not expand into broad autonomous execution until these gates pass.
 - [x] Lint/type/build checks pass.
 - [x] Docker build/startup checks pass.
 - [x] Graph consistency checks pass.
-- [ ] Report distinguishes verified behavior from blocked/manual checks.
+- [x] Report distinguishes verified behavior from blocked/manual checks.

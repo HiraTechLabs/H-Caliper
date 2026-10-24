@@ -189,6 +189,43 @@ def test_credential_lifecycle_redacts_secret_and_blocks_project_delete(client: T
     assert client.delete(f"/api/projects/{project['id']}").status_code == 204
 
 
+def test_credential_status_distinguishes_saved_from_verified_remote(
+    client: TestClient, monkeypatch
+):
+    from caliper.adapters.git.remote_validator import GitRemoteValidator
+
+    project = client.post(
+        "/api/projects",
+        json={
+            "name": "Remote check",
+            "repository_url": "https://example.invalid/org/project.git",
+        },
+    ).json()
+    credentials_url = f"/api/projects/{project['id']}/credentials"
+    created = client.post(
+        credentials_url,
+        json={"name": "Read token", "secret": "acceptance-only-invalid-token"},
+    )
+    assert created.status_code == 201
+    credential_id = created.json()["id"]
+    assert created.json()["status"] == "configured"
+    assert created.json()["last_checked_at"] is None
+
+    checked = []
+
+    def reachable(_self, url, username, _token):
+        checked.append((url, username))
+        return True
+
+    monkeypatch.setattr(GitRemoteValidator, "validate", reachable)
+    validated = client.post(f"{credentials_url}/{credential_id}/validate")
+    assert validated.status_code == 200
+    assert validated.json()["status"] == "reachable"
+    assert validated.json()["last_checked_at"]
+    assert checked == [(project["repository_url"], "x-access-token")]
+    assert client.get(credentials_url).json()[0] == validated.json()
+
+
 def test_repository_knowledge_sync_refreshes_and_preserves_last_snapshot(
     client: TestClient, tmp_path: Path, monkeypatch
 ):
@@ -244,6 +281,10 @@ def test_repository_knowledge_sync_refreshes_and_preserves_last_snapshot(
     first_state = wait_for_sync()
     assert first_state["status"] == "synchronized"
     first_revision = first_state["revision"]
+    assert first_state["source_url"] == bare.as_uri()
+    assert first_state["branch"] == "main"
+    assert first_state["attempted_at"]
+    assert first_state["last_success_at"]
     database_url = (
         make_url(os.environ["TEST_DATABASE_URL"])
         if os.environ.get("TEST_DATABASE_URL")

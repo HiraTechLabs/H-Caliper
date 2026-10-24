@@ -240,3 +240,13 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed.
 - **Skipped / limitations:** No real provider account, API credential, or OAuth consent was used. OAuth initiation and code/automatic callback behavior are wired to OpenCode's documented interface; completion against an account remains an administrator action. Model inference is outside this slice. The critical browser-driven end-to-end gate and other remaining unchecked acceptance criteria remain open; see `docs/INITIAL_ACCEPTANCE_CRITERIA.md` and [report 011](reports/011-opencode-provider.md).
 - **Manual prerequisites:** Sign into a selected provider from **AI providers** before inference workflows can use it. The runtime is an administrator-controlled outbound connection.
+
+## 2026-10-24 — Acceptance evidence for remote credentials and knowledge sync
+
+- **Branch:** `feature/opencode-cli` (follow-up verification on top of `9f51e86`).
+- **What:** Added PostgreSQL API coverage proving a credential stays `configured` until a remote validator confirms reachability, and asserted repository URL, branch, revision, attempt/success times, snapshot refresh, stale failure retention, and invalid graph-reference reporting in a controlled local bare-repository synchronization. Updated only the acceptance items supported by these database and UI test results.
+- **Commands and results:**
+  - `docker compose --profile test run --build --rm integration-tests` → **48 passed**, 2 warnings; the new and existing cases ran against PostgreSQL and an isolated local Git remote.
+  - `git diff --check` → passed.
+- **Skipped / limitations:** The entire browser-driven end-to-end gate and clean-checkout reproducibility gate have not yet been run. No live Ollama endpoint is configured; Ollama adapter validation/discovery is covered by focused adapter and PostgreSQL API tests using a controlled discovery response.
+- **Manual prerequisites:** A live Ollama endpoint is needed to verify network reachability against a real Ollama installation.
