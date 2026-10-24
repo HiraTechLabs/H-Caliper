@@ -9,6 +9,7 @@ type SyncState = {
   last_success_at: string | null
   error_code: string | null
   document_count: number
+  task_id: string | null
 }
 type KnowledgeDocument = { path: string; revision: string; sha256: string; content: string; synced_at: string }
 type Credential = { id: string; name: string; enabled: boolean; deletion_pending: boolean }
@@ -49,10 +50,23 @@ export function RepositorySyncManager({ projectId, onClose }: { projectId: strin
         if (typeof failure?.detail === 'object' && failure.detail?.state) setState(failure.detail.state)
         throw new Error(typeof failure?.detail === 'object' ? failure.detail.message ?? 'Repository synchronization failed.' : typeof failure?.detail === 'string' ? failure.detail : 'Repository synchronization failed.')
       }
-      const confirmed = await response.json() as SyncState
+      let confirmed = await response.json() as SyncState
       setState(confirmed)
+      for (let attempt = 0; attempt < 120 && ['queued', 'running'].includes(confirmed.status); attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1000))
+        const statusResponse = await fetch(`${base}/sync`)
+        if (!statusResponse.ok) throw new Error('The task is still running, but its status could not be read.')
+        confirmed = await statusResponse.json() as SyncState
+        setState(confirmed)
+      }
       await reload()
-      setNotice(`Synchronized ${confirmed.document_count} knowledge files from ${confirmed.branch}.`)
+      if (['queued', 'running'].includes(confirmed.status)) {
+        setNotice('Synchronization continues on the server. You can close this panel and check its status later.')
+      } else if (confirmed.status === 'synchronized') {
+        setNotice(`Synchronized ${confirmed.document_count} knowledge files from ${confirmed.branch}.`)
+      } else {
+        throw new Error(`Synchronization did not finish successfully (${confirmed.error_code ?? confirmed.status}).`)
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Repository synchronization failed.')
       try { await reload() } catch { /* Keep the last confirmed view visible. */ }

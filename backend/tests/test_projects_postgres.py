@@ -1,6 +1,7 @@
 import asyncio
 import os
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -220,10 +221,37 @@ def test_repository_knowledge_sync_refreshes_and_preserves_last_snapshot(
     assert project.status_code == 201
     project_id = project.json()["id"]
     sync_url = f"/api/projects/{project_id}/sync"
+
+    def wait_for_sync() -> dict:
+        for _ in range(300):
+            current = client.get(sync_url).json()
+            if current["status"] not in {"queued", "running"}:
+                return current
+            time.sleep(0.05)
+        pytest.fail("Repository sync task did not finish within 15 seconds")
+
     first = client.post(sync_url, json={})
-    assert first.status_code == 200, first.text
-    assert first.json()["status"] == "synchronized"
-    first_revision = first.json()["revision"]
+    assert first.status_code == 202, first.text
+    assert first.json()["status"] == "queued"
+    assert first.json()["task_id"]
+    first_task_id = first.json()["task_id"]
+    first_state = wait_for_sync()
+    assert first_state["status"] == "synchronized"
+    first_revision = first_state["revision"]
+    database_url = (
+        make_url(os.environ["TEST_DATABASE_URL"])
+        if os.environ.get("TEST_DATABASE_URL")
+        else database_url_from_environment()
+    )
+    sync_engine = create_engine(database_url)
+    with sync_engine.connect() as connection:
+        task = connection.execute(
+            text("SELECT status, payload FROM tasks WHERE id = :task_id"),
+            {"task_id": first_task_id},
+        ).one()
+    sync_engine.dispose()
+    assert task.status == "succeeded"
+    assert task.payload == {"project_id": project_id, "credential_id": None}
     assert client.get(sync_url).json()["revision"] == first_revision
     assert (
         client.get(f"/api/projects/{project_id}/knowledge").json()[0]["content"] == "First version"
@@ -234,8 +262,10 @@ def test_repository_knowledge_sync_refreshes_and_preserves_last_snapshot(
     git(source, "commit", "-m", "updated knowledge")
     git(source, "push", str(bare), "main")
     second = client.post(sync_url, json={})
-    assert second.status_code == 200, second.text
-    assert second.json()["revision"] != first_revision
+    assert second.status_code == 202, second.text
+    second_state = wait_for_sync()
+    assert second_state["status"] == "synchronized"
+    assert second_state["revision"] != first_revision
     assert (
         client.get(f"/api/projects/{project_id}/knowledge").json()[0]["content"] == "Second version"
     )
@@ -252,10 +282,11 @@ def test_repository_knowledge_sync_refreshes_and_preserves_last_snapshot(
         == 200
     )
     failed = client.post(sync_url, json={})
-    assert failed.status_code == 502
+    assert failed.status_code == 202
+    assert wait_for_sync()["status"] == "stale"
     fresh = client.get(sync_url).json()
     assert fresh["status"] == "stale"
-    assert fresh["revision"] == second.json()["revision"]
+    assert fresh["revision"] == second_state["revision"]
     assert (
         client.get(f"/api/projects/{project_id}/knowledge").json()[0]["content"] == "Second version"
     )

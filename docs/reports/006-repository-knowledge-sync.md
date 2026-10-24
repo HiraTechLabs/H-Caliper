@@ -4,6 +4,8 @@
 **Branch:** `feature/repository-sync` (based on `feature/secret-store`)  
 **Scope:** authenticated project repository sync, safe derived knowledge snapshots, and UI browsing.
 
+**Follow-up:** Synchronous request execution described below was superseded by [task report 007](007-durable-task-runner.md) on `feature/durable-task-runner`. The durable queue and worker are implemented there, but their PostgreSQL restart behavior still requires live integration verification.
+
 ## Implemented
 
 - Added PostgreSQL tables and Alembic migration `0004_repository_knowledge_sync` for project sync state and revisioned knowledge files.

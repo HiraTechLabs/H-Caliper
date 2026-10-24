@@ -11,11 +11,14 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('RepositorySyncManager', () => {
   it('renders fresh files after a confirmed synchronization', async () => {
-    const state = { status: 'configured', source_url: 'https://example.test/repo.git', branch: 'main', revision: null, attempted_at: '2026-10-24T10:00:00Z', last_success_at: null, error_code: null, document_count: 0 }
-    const synchronized = { ...state, status: 'synchronized', revision: 'abc123def456', last_success_at: '2026-10-24T10:01:00Z', document_count: 1 }
+    const state = { status: 'configured', source_url: 'https://example.test/repo.git', branch: 'main', revision: null, attempted_at: '2026-10-24T10:00:00Z', last_success_at: null, error_code: null, document_count: 0, task_id: null }
+    const queued = { ...state, status: 'queued', task_id: 'task-1' }
+    const synchronized = { ...state, status: 'synchronized', revision: 'abc123def456', last_success_at: '2026-10-24T10:01:00Z', document_count: 1, task_id: 'task-1' }
     const document = { path: 'docs/guide.md', revision: 'abc123def456', sha256: 'hash', content: '<script>not HTML</script>', synced_at: '2026-10-24T10:01:00Z' }
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(response(state)).mockResolvedValueOnce(response([])).mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(response(queued, 202))
+      .mockResolvedValueOnce(response(queued))
       .mockResolvedValueOnce(response(synchronized))
       .mockResolvedValueOnce(response(synchronized)).mockResolvedValueOnce(response([document])).mockResolvedValueOnce(response([]))
     vi.stubGlobal('fetch', fetchMock)
@@ -24,7 +27,7 @@ describe('RepositorySyncManager', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Synchronize now' }))
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Synchronized 1 knowledge files from main.')
+    expect(await screen.findByRole('status', {}, { timeout: 5000 })).toHaveTextContent('Synchronized 1 knowledge files from main.')
     expect(await screen.findByText('docs/guide.md')).toBeInTheDocument()
     expect(screen.getByText('<script>not HTML</script>')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'not HTML' })).not.toBeInTheDocument()

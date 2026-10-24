@@ -92,7 +92,7 @@ The project owner approved the full proposed architecture and first-slice scope 
 - **Decision:** Implement the task-runner as an in-process asyncio worker with state durably persisted in PostgreSQL (state machine, bounded concurrency, graceful shutdown). No message broker in the initial slice. Revisit a broker (e.g. Redis-based) only when measured load requires it.
 - **Reason:** Satisfies the durable-task requirements and the persistence release gate with the fewest moving parts; consistent with "avoid unnecessary dependencies" and "no speculative abstractions".
 - **Alternatives considered:** Celery+Redis (extra service to operate before it is needed), RQ (Redis dependency), arq (plausible later migration path if a broker is adopted).
-- **Consequences:** Long Git/model operations run as durable background tasks; the event-stream (D-009, SSE) is progress-only and never authoritative.
+- **Consequences:** Long Git/model operations run as durable background tasks; the event-stream (D-009, SSE) is progress-only and never authoritative. Initial queue records live in PostgreSQL; a PostgreSQL advisory lock elects the single in-process worker, `FOR UPDATE SKIP LOCKED` claims jobs, waiting work is capped, and interrupted jobs are reconciled/retried after restart. Task payloads contain identifiers, never secret values.
 
 ## D-016 — First vertical slice scope
 - **Status:** Accepted

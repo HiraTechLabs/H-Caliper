@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from caliper.adapters.postgres.models import (
@@ -9,6 +9,7 @@ from caliper.adapters.postgres.models import (
     KnowledgeFileRow,
     ProjectRow,
     ProjectSyncRow,
+    TaskRow,
 )
 from caliper.application.repository_sync import (
     GitCredential,
@@ -18,7 +19,10 @@ from caliper.application.repository_sync import (
     RepositorySourceChanged,
     SyncAlreadyRunning,
     SyncState,
+    TaskQueueFull,
 )
+
+QUEUE_CAP_LOCK_KEY = -7_524_910_182_331
 
 
 class SqlRepositorySyncRepository:
@@ -52,6 +56,86 @@ class SqlRepositorySyncRepository:
         ).all()
         return [secret_ref for row in rows for secret_ref in row if secret_ref is not None]
 
+    async def enqueue(
+        self,
+        project_id: UUID,
+        url: str,
+        branch: str,
+        credential_id: UUID | None,
+        at: datetime,
+    ) -> SyncState:
+        project = await self._session.scalar(
+            select(ProjectRow)
+            .where(ProjectRow.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if project is None:
+            raise ProjectNotFound(str(project_id))
+        if project.repository_url != url or project.default_branch != branch:
+            raise RepositorySourceChanged("Repository settings changed; reload and retry")
+        row = await self._session.get(ProjectSyncRow, project_id)
+        if row is not None and row.status in {"queued", "running"}:
+            raise SyncAlreadyRunning("A synchronization is already queued or running")
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"),
+            {"lock_key": QUEUE_CAP_LOCK_KEY},
+        )
+        queued_count = await self._session.scalar(
+            select(func.count()).select_from(TaskRow).where(TaskRow.status == "queued")
+        )
+        if (queued_count or 0) >= 1000:
+            raise TaskQueueFull("The task queue is full; retry after pending work completes")
+
+        await self._session.execute(
+            delete(TaskRow).where(
+                TaskRow.project_id == project_id,
+                TaskRow.status.in_(("succeeded", "failed")),
+            )
+        )
+
+        task_id = uuid4()
+        self._session.add(
+            TaskRow(
+                id=task_id,
+                project_id=project_id,
+                kind="repository_sync",
+                status="queued",
+                payload={
+                    "project_id": str(project_id),
+                    "credential_id": str(credential_id) if credential_id else None,
+                },
+                attempt_count=0,
+                created_at=at,
+            )
+        )
+        if row is None:
+            row = ProjectSyncRow(
+                project_id=project_id,
+                status="queued",
+                source_url=url,
+                branch=branch,
+                revision=None,
+                attempted_at=at,
+                last_success_at=None,
+                error_code=None,
+                task_id=task_id,
+            )
+            self._session.add(row)
+        else:
+            row.status = "queued"
+            row.source_url = url
+            row.branch = branch
+            row.attempted_at = at
+            row.error_code = None
+            row.task_id = task_id
+        try:
+            await self._session.commit()
+        except Exception:
+            await self._session.rollback()
+            raise
+        return await self.state(project_id)  # type: ignore[return-value]
+
     async def begin(self, project_id: UUID, url: str, branch: str, at: datetime) -> None:
         project = await self._session.scalar(
             select(ProjectRow)
@@ -78,6 +162,12 @@ class SqlRepositorySyncRepository:
                 error_code=None,
             )
             self._session.add(row)
+        elif row.status == "queued":
+            row.status = "running"
+            row.source_url = url
+            row.branch = branch
+            row.attempted_at = at
+            row.error_code = None
         else:
             row.status = "running"
             row.source_url = url
@@ -159,6 +249,7 @@ class SqlRepositorySyncRepository:
             row.last_success_at,
             row.error_code,
             count or 0,
+            row.task_id,
         )
 
     async def documents(self, project_id: UUID) -> list[KnowledgeDocument]:

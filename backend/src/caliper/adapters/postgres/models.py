@@ -13,6 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -89,9 +90,10 @@ class ProjectSyncRow(Base):
     __tablename__ = "project_syncs"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('running', 'synchronized', 'stale', 'failed')",
+            "status IN ('queued', 'running', 'synchronized', 'stale', 'failed')",
             name="ck_project_sync_status",
         ),
+        UniqueConstraint("task_id", name="uq_project_syncs_task_id"),
     )
 
     project_id: Mapped[UUID] = mapped_column(
@@ -103,6 +105,35 @@ class ProjectSyncRow(Base):
     revision: Mapped[str | None] = mapped_column(String(64), nullable=True)
     attempted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    task_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class TaskRow(Base):
+    __tablename__ = "tasks"
+    __table_args__ = (
+        CheckConstraint("kind IN ('repository_sync')", name="ck_tasks_supported_kind"),
+        CheckConstraint(
+            "status IN ('queued', 'running', 'succeeded', 'failed')",
+            name="ck_tasks_status",
+        ),
+        Index("ix_tasks_claim", "status", "created_at"),
+        Index("ix_tasks_project", "project_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    project_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(48), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 

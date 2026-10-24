@@ -5,7 +5,9 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from caliper.adapters.postgres.database import engine
+from caliper.adapters.postgres.database import SessionLocal, engine
+from caliper.adapters.postgres.task_runner import PostgresTaskRunner
+from caliper.adapters.task_handlers import handle_persisted_task
 from caliper.api.auth import router as auth_router
 from caliper.api.credentials import router as credentials_router
 from caliper.api.projects import router as projects_router
@@ -14,8 +16,14 @@ from caliper.api.repository_sync import router as repository_sync_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    yield
-    await engine.dispose()
+    runner = PostgresTaskRunner(SessionLocal, engine, handle_persisted_task)
+    app.state.task_runner = runner
+    await runner.start()
+    try:
+        yield
+    finally:
+        await runner.stop()
+        await engine.dispose()
 
 
 app = FastAPI(

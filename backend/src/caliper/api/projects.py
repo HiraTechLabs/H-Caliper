@@ -56,9 +56,7 @@ class ProjectInput(BaseModel):
                 and not parsed.fragment
             ):
                 return value
-        elif (
-            re.fullmatch(r"git@[A-Za-z0-9.-]+:[^?#\s]+", value) is not None
-        ):
+        elif re.fullmatch(r"git@[A-Za-z0-9.-]+:[^?#\s]+", value) is not None:
             return value
         elif (
             value.startswith("file://")

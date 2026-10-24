@@ -151,3 +151,18 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed.
 - **Skipped / limitations:** Docker engine unavailable. PostgreSQL migrations and the new durable sync integration test, Docker build/startup, persistent restart behavior, and live remote access were not exercised. Sync currently occupies the bounded API request; D-015's persistent background worker remains a release blocker. Full details are in [task report 006](reports/006-repository-knowledge-sync.md).
 - **Manual prerequisites:** Start Docker on the Linux server and run the isolated PostgreSQL integration profile before accepting repository sync as production-ready. Set `CALIPER_ALLOW_LOCAL_REPOSITORIES=true` only when local repository access is intentionally needed; populate `config/ssh/known_hosts` with host keys verified through a trusted source for SSH remotes.
+
+## 2026-10-24 — PostgreSQL-backed background task runner
+
+- **Branch:** `feature/durable-task-runner` (based on committed `feature/repository-sync`, commit `ad9b947`).
+- **What:** Implements accepted D-015 for repository sync: PostgreSQL-persisted queue records, one advisory-lock-protected in-process worker, `FOR UPDATE SKIP LOCKED` task claims, bounded queue and retry count, restart requeue/reconciliation, 202 API acceptance, and UI status polling. Queue records contain project and credential IDs only. Project deletion remains blocked during queued/running sync.
+- **Commands and results:**
+  - From `backend/`, `uv --cache-dir C:\Users\Mohamed\.codex\visualizations\2026\10\23\01a16a05-9b43-73d2-b711-440fbac014a4\uv-cache run ruff check src tests migrations` → passed.
+  - From `backend/`, `uv --cache-dir C:\Users\Mohamed\.codex\visualizations\2026\10\23\01a16a05-9b43-73d2-b711-440fbac014a4\uv-cache run pytest --basetemp=C:\Users\Mohamed\.codex\visualizations\2026\10\23\01a16a05-9b43-73d2-b711-440fbac014a4\pytest-tmp` → 17 passed; 6 PostgreSQL integration tests skipped without an isolated PostgreSQL test database.
+  - From `web/`, `pnpm.cmd test -- --run --pool=forks --maxWorkers=1 --minWorkers=1` → 9 passed.
+  - From `web/`, `pnpm.cmd run build` → passed (TypeScript and Vite production build).
+  - `$env:POSTGRES_PASSWORD='compose-validation-only'; docker compose config --quiet` → passed.
+  - With `CALIPER_DATABASE_URL` set to a disposable `caliper_test` URL, `uv --cache-dir C:\Users\Mohamed\.codex\visualizations\2026\10\23\01a16a05-9b43-73d2-b711-440fbac014a4\uv-cache run alembic upgrade head --sql` → generated DDL through migration `0005_durable_task_runner` without connecting to PostgreSQL.
+  - `git diff --check` → passed before final commit review.
+- **Skipped / limitations:** The Linux Docker engine is unavailable here; the real PostgreSQL queue, failure/restart recovery, applied migration, and container startup checks require the documented test profile on the Linux host.
+- **Manual prerequisites:** Run the isolated `db-test` integration profile before treating the durable worker gate as verified.

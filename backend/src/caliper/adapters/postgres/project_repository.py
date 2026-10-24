@@ -76,12 +76,12 @@ class SqlProjectRepository:
         running_sync = await self._session.scalar(
             select(ProjectSyncRow.project_id).where(
                 ProjectSyncRow.project_id == project_id,
-                ProjectSyncRow.status == "running",
+                ProjectSyncRow.status.in_(("queued", "running")),
             )
         )
         if running_sync is not None:
             raise ProjectHasRunningSync(
-                "Wait for repository synchronization before deleting the project"
+                "Wait for repository synchronization to finish before deleting the project"
             )
         await self._session.delete(row)
         try:

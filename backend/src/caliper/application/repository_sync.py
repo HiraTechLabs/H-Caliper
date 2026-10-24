@@ -27,6 +27,7 @@ class SyncState:
     last_success_at: datetime | None
     error_code: str | None
     document_count: int
+    task_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -56,6 +57,9 @@ class RepositorySyncRepository(Protocol):
     async def project_source(self, project_id: UUID) -> RepositorySource | None: ...
     async def credential(self, project_id: UUID, credential_id: UUID) -> GitCredential | None: ...
     async def credential_secret_refs(self, project_id: UUID) -> list[UUID]: ...
+    async def enqueue(
+        self, project_id: UUID, url: str, branch: str, credential_id: UUID | None, at: datetime
+    ) -> SyncState: ...
     async def begin(self, project_id: UUID, url: str, branch: str, at: datetime) -> None: ...
     async def succeed(
         self,
@@ -102,6 +106,10 @@ class SyncAlreadyRunning(RuntimeError):
 
 
 class RepositorySourceChanged(RuntimeError):
+    pass
+
+
+class TaskQueueFull(RuntimeError):
     pass
 
 
@@ -162,6 +170,22 @@ class RepositorySync:
         if await self._repository.project_source(project_id) is None:
             raise ProjectNotFound(str(project_id))
         return await self._repository.documents(project_id)
+
+    async def enqueue(self, project_id: UUID, credential_id: UUID | None = None) -> SyncState:
+        source = await self._repository.project_source(project_id)
+        if source is None:
+            raise ProjectNotFound(str(project_id))
+        if not source.url:
+            raise ValueError("Set a repository URL before synchronizing")
+        if credential_id:
+            credential = await self._repository.credential(project_id, credential_id)
+            if credential is None:
+                raise CredentialNotFound(str(credential_id))
+            if not credential.enabled or credential.deletion_pending:
+                raise ValueError("Enable the credential before synchronizing")
+        return await self._repository.enqueue(
+            project_id, source.url, source.branch, credential_id, datetime.now(UTC)
+        )
 
     async def sync(self, project_id: UUID, credential_id: UUID | None = None) -> SyncState:
         source = await self._repository.project_source(project_id)
