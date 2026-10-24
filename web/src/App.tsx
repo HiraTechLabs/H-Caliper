@@ -6,6 +6,7 @@ import { CredentialManager } from './components/CredentialManager'
 import { PrinciplesWorkspace } from './components/PrinciplesWorkspace'
 import { OllamaProviderManager } from './components/OllamaProviderManager'
 import { OpenCodeProviderManager } from './components/OpenCodeProviderManager'
+import { ProjectModelManager } from './components/ProjectModelManager'
 import { RepositorySyncManager } from './components/RepositorySyncManager'
 
 type Project = {
@@ -44,6 +45,7 @@ function App() {
   const [showPrinciplesWorkspace, setShowPrinciplesWorkspace] = useState(false)
   const [showOllamaSettings, setShowOllamaSettings] = useState(false)
   const [showOpenCodeSettings, setShowOpenCodeSettings] = useState(false)
+  const [showProjectModel, setShowProjectModel] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [authReady, setAuthReady] = useState(false)
@@ -252,6 +254,7 @@ function App() {
     setShowCredentialManager(false)
     setShowRepositorySync(false)
     setShowPrinciplesWorkspace(false)
+    setShowProjectModel(false)
   }
 
   const projectCount = projects.length
@@ -404,6 +407,8 @@ function App() {
                       <PrinciplesWorkspace projectId={selectedProject.id} onClose={() => setShowPrinciplesWorkspace(false)} />
                     ) : showCredentialManager ? (
                       <CredentialManager projectId={selectedProject.id} onClose={() => setShowCredentialManager(false)} />
+                    ) : showProjectModel ? (
+                      <ProjectModelManager projectId={selectedProject.id} onClose={() => setShowProjectModel(false)} />
                     ) : <>
                     <dl className="project-detail-list">
                       <div><dt>Description</dt><dd>{selectedProject.description || 'No description yet.'}</dd></div>
@@ -415,6 +420,7 @@ function App() {
                     <div className="dialog-actions">
                       <Button variant="outline" size="sm" type="button" onClick={() => setShowRepositorySync(true)}>Repository knowledge</Button>
                       <Button variant="outline" size="sm" type="button" onClick={() => setShowPrinciplesWorkspace(true)}>Principles workspace</Button>
+                      <Button variant="outline" size="sm" type="button" onClick={() => setShowProjectModel(true)}>Choose AI model</Button>
                       <Button variant="outline" size="sm" type="button" onClick={() => setShowCredentialManager(true)}>Manage credentials</Button>
                       <Button variant="outline" size="sm" type="button" onClick={() => { setDialogError(''); setDialogMode('delete') }}><Trash2 size={15} />Delete project</Button>
                       <Button variant="default" size="sm" type="button" onClick={beginEdit}><Pencil size={15} />Edit project</Button>

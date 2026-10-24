@@ -28,6 +28,7 @@ Do not expand into broad autonomous execution until these gates pass.
 - [x] Provider login has a documented supported flow and honest unsupported-provider behavior.
 - [ ] Ollama endpoint validation and model discovery work where supported.
 - [x] OpenCode CLI/auth/model configuration is validated.
+- [ ] A connected/discovered model can be assigned to one project, persisted, read fresh, and cleared without affecting another project.
 - [x] Each adapter has independent tests and actionable errors.
 
 ## Quality gates

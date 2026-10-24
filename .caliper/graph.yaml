@@ -20,6 +20,7 @@ nodes:
   - {id: container-platform, label: Docker Platform, kind: infrastructure, status: planned}
   - {id: tls-gateway, label: HTTPS Gateway, kind: security, status: planned}
   - {id: administrator-auth, label: Administrator Authentication, kind: security, status: planned}
+  - {id: project-model-selection, label: Per-project Model Selection, kind: application, status: planned}
 edges:
   - {from: web-ui, to: api, relation: calls}
   - {from: api, to: application-services, relation: delegates_to}
@@ -53,3 +54,7 @@ edges:
   - {from: tls-gateway, to: container-platform, relation: persists_internal_ca}
   - {from: api, to: administrator-auth, relation: requires_for_projects}
   - {from: administrator-auth, to: postgresql, relation: persists_hashes_and_sessions}
+  - {from: web-ui, to: project-model-selection, relation: configures_for_project}
+  - {from: application-services, to: project-model-selection, relation: validates_catalog_selection}
+  - {from: project-model-selection, to: postgresql, relation: persists_per_project_selection}
+  - {from: tests, to: project-model-selection, relation: verifies_persistence_and_catalog_validation}

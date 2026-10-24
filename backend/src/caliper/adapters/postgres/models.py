@@ -37,6 +37,23 @@ class ProjectRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ProjectModelRow(Base):
+    __tablename__ = "project_model_settings"
+    __table_args__ = (
+        CheckConstraint(
+            "provider_type IN ('ollama', 'opencode')", name="ck_project_model_provider_type"
+        ),
+    )
+
+    project_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    provider_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    provider_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    model_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class AdminCredentialRow(Base):
     __tablename__ = "admin_credential"
     __table_args__ = (CheckConstraint("id = 1", name="ck_admin_credential_singleton"),)

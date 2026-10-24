@@ -23,6 +23,7 @@
 - **container-platform:** images, Compose, health checks, configuration, and persistent volumes.
 - **tls-gateway:** Caddy HTTPS termination and persistent internal certificate authority.
 - **administrator-auth:** single administrator password verification and revocable sessions.
+- **project-model-selection:** Per-project model assignment validated against connected OpenCode providers or the latest reachable Ollama discovery catalog and persisted in PostgreSQL.
 
 OpenCode credentials are stored as one encrypted Secret Store profile. OpenCode receives a temporary runtime copy from a memory-backed directory; PostgreSQL stores only the encrypted-profile reference and selected model identifier.
 

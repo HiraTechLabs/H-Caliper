@@ -106,6 +106,44 @@ def test_project_crud_is_durable_and_fresh_read_matches(client: TestClient):
     assert client.get(f"/api/projects/{project_id}").status_code == 404
 
 
+def test_project_model_selection_is_catalog_validated_and_persisted(client, monkeypatch):
+    from caliper.api import project_models
+
+    async def available_models(_session, _request):
+        return [
+            project_models.ModelOption(
+                provider_type="opencode",
+                provider_id="test-provider",
+                provider_name="Test Provider",
+                model_id="test-provider/test-model",
+                model_name="Test Model",
+            )
+        ]
+
+    monkeypatch.setattr(project_models, "_options", available_models)
+    project = client.post("/api/projects", json={"name": "Model assignment"}).json()
+    other_project = client.post("/api/projects", json={"name": "Independent project"}).json()
+    path = f"/api/projects/{project['id']}/model"
+    payload = {
+        "provider_type": "opencode",
+        "provider_id": "test-provider",
+        "model_id": "test-provider/test-model",
+    }
+
+    assert client.get(path).json()["selection"] is None
+    assert len(client.get(path).json()["options"]) == 1
+    saved = client.put(path, json=payload)
+    assert saved.status_code == 200
+    assert saved.json()["selection"]["model_id"] == payload["model_id"]
+    assert client.get(path).json()["selection"] == saved.json()["selection"]
+    assert client.get(f"/api/projects/{other_project['id']}/model").json()["selection"] is None
+
+    invalid = client.put(path, json={**payload, "model_id": "not-in-catalog"})
+    assert invalid.status_code == 409
+    assert client.delete(path).status_code == 204
+    assert client.get(path).json()["selection"] is None
+
+
 def test_project_validation_and_missing_delete(client: TestClient):
     assert client.post("/api/projects", json={"name": "   "}).status_code == 422
     assert (

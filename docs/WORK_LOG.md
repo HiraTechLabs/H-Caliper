@@ -276,3 +276,17 @@ Every implementation session records: date, branch, exact commands, results, ski
   - `git diff --check` → passed.
 - **Skipped / limitations:** The provider settings panel remained unresponsive in a browser-driven attempt even after 120 seconds, so it is not part of the passing browser scenario; OpenCode credential/model operations are verified by the PostgreSQL integration suite and provider controls by frontend tests. A temporary Ollama Docker image pull did not finish in the available time; the attempt was interrupted before a test container or live endpoint was created. No real provider account/credential was used. The remaining acceptance gate is live Ollama network/model discovery.
 - **Manual prerequisites:** Configure a reachable Ollama endpoint to complete its live network/model-discovery gate; authorize a real provider account to verify external OAuth/API access.
+
+## 2026-10-24 — Per-project AI model selection
+
+- **Branch:** `feature/project-model-selection` (based on `feature/opencode-cli`).
+- **What:** Added a project-owned PostgreSQL model assignment, authenticated API endpoints that offer models only from connected OpenCode providers or the latest successful Ollama discovery, and a project details control for selecting/clearing the assignment. Added accepted decision D-021, graph responsibility, migration `0008_project_model`, UI coverage, and PostgreSQL API coverage. This is model configuration only; inference remains out of scope.
+- **Commands and results:**
+  - `pnpm.cmd test -- --pool=forks --maxWorkers=1 --minWorkers=1` → **14 passed** across 6 suites, including project model save/read UI behavior.
+  - `pnpm.cmd run build` → passed (TypeScript and Vite production build).
+  - `uv run ruff check src tests migrations` → passed.
+  - `uv run ruff format --check src tests migrations` → passed (70 files formatted).
+  - `CALIPER_DATABASE_URL=postgresql+psycopg://caliper:offline-validation@localhost/caliper_test uv run alembic upgrade head --sql` → passed; generated migration chain through `0008_project_model` without connecting to a database.
+  - `git diff --check` → passed.
+- **Skipped / limitations:** The local Docker Linux engine is unavailable. The PostgreSQL API persistence test and real migration application could not run here; they are required before marking the acceptance criterion passed. The running host does not receive this feature until the branch is published and its API/web images are rebuilt.
+- **Manual prerequisites:** Configure and connect an OpenCode provider or validate Ollama discovery before assigning a project model.

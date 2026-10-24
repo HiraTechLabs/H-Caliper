@@ -18,6 +18,7 @@ from caliper.api.auth import router as auth_router
 from caliper.api.credentials import router as credentials_router
 from caliper.api.ollama_provider import router as ollama_provider_router
 from caliper.api.opencode_provider import router as opencode_provider_router
+from caliper.api.project_models import router as project_models_router
 from caliper.api.projects import router as projects_router
 from caliper.api.repository_sync import router as repository_sync_router
 from caliper.application.secret_store import SecretStoreError
@@ -57,6 +58,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(projects_router)
+app.include_router(project_models_router)
 app.include_router(auth_router)
 app.include_router(credentials_router)
 app.include_router(repository_sync_router)
