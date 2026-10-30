@@ -1,0 +1,102 @@
+name: hcaliper-factory
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hcaliper}
+      POSTGRES_USER: ${POSTGRES_USER:-hcaliper}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks: [internal]
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hcaliper}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hcaliper}
+      WORKSPACE_ROOT: /var/lib/hcaliper/workspaces
+      ENV: ${ENV:-production}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-1}
+      FORWARDED_ALLOW_IPS: "*"
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8001}:8000"
+    volumes:
+      - workspace_data:/var/lib/hcaliper/workspaces
+      # Mount the Docker socket only if projects require Docker-backed environments.
+      # This grants powerful host control; keep disabled unless operationally necessary.
+      # - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks: [internal]
+
+  worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: ["worker"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hcaliper}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hcaliper}
+      WORKSPACE_ROOT: /var/lib/hcaliper/workspaces
+      ENV: ${ENV:-production}
+      WORKER_ID: ${WORKER_ID:-worker-1}
+    volumes:
+      - workspace_data:/var/lib/hcaliper/workspaces
+      # Docker socket is deliberately not mounted by default.
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import pathlib,sys; sys.exit(0 if b'app.worker' in pathlib.Path('/proc/1/cmdline').read_bytes() else 1)"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+    networks: [internal]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api/v1
+    restart: unless-stopped
+    ports:
+      - "${LAN_BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [internal]
+
+volumes:
+  postgres_data:
+  workspace_data:
+
+networks:
+  internal:
+    driver: bridge

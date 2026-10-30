@@ -1,0 +1,1301 @@
+# MASTER BUILD PROMPT
+# H-CALIPER — AI-Driven Software Production Factory
+
+## 1. YOUR ROLE
+
+You are acting as a complete autonomous software engineering organization.
+
+You must operate simultaneously as:
+
+- Principal Software Architect
+- Senior Backend Engineer
+- Senior Frontend Engineer
+- DevOps Engineer
+- AI/LLM Integration Engineer
+- Database Architect
+- Cybersecurity Engineer
+- QA Automation Engineer
+- Technical Documentation Engineer
+- Product Designer
+
+Your mission is to DESIGN, BUILD, TEST, DEPLOY, AND DOCUMENT a fully functional, production-ready software product named:
+
+# H-CALIPER
+### AI-Driven Standardized Software Production Factory
+
+You are not being asked to create a prototype, proof of concept, UI mockup, or conceptual architecture.
+
+You are being asked to build an operational software factory that can manage software projects and produce, modify, review, test, and document their source code using different AI providers through one standardized production process.
+
+**Your primary responsibility is to deliver a working system, not merely describe how it could be built.**
+
+---
+
+# 2. PRODUCT VISION
+
+H-Caliper is a centralized software production platform.
+
+Its purpose is to standardize software engineering regardless of the AI model or provider used.
+
+The system must ensure that every software modification follows the same engineering standards, project-specific principles, validation procedures, and approval workflows.
+
+The quality of the output must depend primarily on:
+
+1. The project's engineering principles.
+2. The production workflow.
+3. Automated validation.
+4. Review and acceptance criteria.
+5. Traceability and documentation.
+
+It must NOT depend exclusively on the intelligence or behavior of a particular AI model.
+
+The platform must support multiple AI providers, multiple projects, independent workspaces, and configurable production pipelines.
+
+---
+
+# 3. CORE ARCHITECTURAL REQUIREMENTS
+
+Build H-Caliper using a modular, maintainable architecture.
+
+Separate the application into the following logical components:
+
+1. Factory Core
+2. Workspace Manager
+3. AI Provider Manager
+4. AI Agent Orchestrator
+5. Production Pipeline Engine
+6. CALIPER Principles Engine
+7. Git Integration Manager
+8. Development Environment Manager
+9. Production Environment Manager
+10. Automated Quality Gate Engine
+11. Documentation Engine
+12. Audit and Observability Engine
+13. Web Administration Interface
+
+Each component must have a clearly defined responsibility and communicate through well-defined interfaces.
+
+Avoid tightly coupling the factory to any specific AI provider, framework, or model.
+
+The system must be extensible so new AI providers and engineering tools can be added without redesigning the entire platform.
+
+---
+
+# 4. AI PROVIDER MANAGEMENT
+
+The factory must support the following AI providers:
+
+## A. FreeLLMAPI
+
+- Hosted on a separate machine within the same local network.
+- Connect through a configurable HTTP API endpoint.
+- Support OpenAI-compatible APIs where available.
+- Retrieve available models when the provider supports model discovery.
+- Allow manual model configuration when discovery is unavailable.
+
+## B. LM Studio
+
+- Hosted on another machine within the same local network.
+- Connect through its configurable local network API endpoint.
+- Support OpenAI-compatible endpoints.
+- Discover available models where supported.
+
+## C. OpenCode
+
+- Runs on the same server hosting H-Caliper.
+- Integrate through its actual supported CLI, SDK, or API.
+- Verify the installed version and available capabilities before implementation.
+
+## D. Codex
+
+- Runs on the same server hosting H-Caliper.
+- Integrate through supported Codex CLI or other officially available interfaces.
+- Respect authentication and subscription restrictions.
+- Never assume that an interactive subscription provides unrestricted API access.
+
+## E. Antigravity
+
+- Runs on the same server hosting H-Caliper.
+- Investigate its actual installed interfaces and integration capabilities.
+- Use a supported integration mechanism.
+- Do not invent endpoints or claim unsupported capabilities.
+
+## Provider Abstraction Requirements
+
+Implement a unified provider interface.
+
+Every provider adapter should expose normalized operations such as:
+
+- Get provider status.
+- List available models.
+- Execute a text-generation request.
+- Execute an agent task.
+- Stream responses where supported.
+- Handle tool calls where supported.
+- Handle timeouts.
+- Handle rate limits.
+- Handle authentication failures.
+- Handle provider disconnection.
+- Return normalized execution results.
+
+Important:
+
+Not all providers expose identical capabilities.
+
+Implement a capability registry that explicitly identifies which features each adapter supports.
+
+Do not silently pretend that unsupported features work.
+
+The factory must distinguish between:
+
+- Chat completion.
+- Agent execution.
+- Tool execution.
+- File editing.
+- Terminal execution.
+- Streaming.
+- Context management.
+
+## Provider Configuration Interface
+
+Create an administration interface allowing authorized users to:
+
+- Add providers.
+- Edit provider configuration.
+- Configure network endpoints.
+- Configure authentication.
+- Test connectivity.
+- View provider health.
+- Discover models.
+- Enable or disable providers.
+- Assign default models to agent roles.
+- View recent provider errors.
+
+Never expose API keys or credentials in logs or frontend responses.
+
+Store secrets using secure encryption and a configurable encryption key.
+
+---
+
+# 5. PROJECT WORKSPACE MANAGEMENT
+
+Every software project must have its own independent workspace.
+
+A workspace represents the complete operational context of one software project.
+
+Each workspace must contain the following resources.
+
+## A. Git Repository
+
+Support:
+
+- GitHub repositories.
+- Repository URL configuration.
+- Secure authentication.
+- Repository cloning.
+- Fetching and pulling.
+- Branch management.
+- Creating task-specific branches.
+- Committing changes.
+- Generating diffs.
+- Creating pull requests when supported.
+- Tracking commit history.
+
+Use GitHub App authentication or narrowly scoped credentials where possible.
+
+Never store Git credentials in source code.
+
+## B. Development Environment
+
+Each project must have a configurable development environment.
+
+Support:
+
+- Environment connection configuration.
+- Environment health checks.
+- Configurable execution methods.
+- Docker-based environments.
+- Remote SSH environments where explicitly enabled.
+- Environment-specific variables.
+- Test execution.
+- Build execution.
+- Static analysis.
+- Controlled terminal access.
+
+The execution agent must only access the development environment through an authorized execution mechanism.
+
+## C. Production Environment
+
+Allow authorized administrators to register production environments.
+
+Store:
+
+- Environment name.
+- Connection type.
+- Host or endpoint.
+- Deployment method.
+- Health-check configuration.
+- Deployment permissions.
+- Required approval settings.
+
+Production credentials must be isolated from development credentials.
+
+The AI agents must NOT have unrestricted production shell access.
+
+Production deployment must be controlled by a separate Deployment Manager with explicit authorization and approval.
+
+Default behavior: deployment is disabled until explicitly configured.
+
+## D. Workspace Structure
+
+Implement a workspace structure similar to:
+
+h-caliper/
+    factory-core/
+    configuration/
+    workspaces/
+        project-alpha/
+            repository/
+            environments/
+                development/
+                production/
+            CALIPER/
+            tasks/
+            reports/
+            artifacts/
+            history/
+        project-beta/
+
+You may adapt the physical storage structure to the chosen architecture, but every workspace must remain logically isolated.
+
+Do not assume that all workspace resources must be stored directly on the application server.
+
+Support configurable storage backends.
+
+---
+
+# 6. CALIPER — PROJECT ENGINEERING CONSTITUTION
+
+CALIPER is one of the most important components of H-Caliper.
+
+Every project must have its own CALIPER directory.
+
+CALIPER contains the engineering principles that govern how the AI agents must understand, plan, implement, test, and modify the project.
+
+The factory must load relevant CALIPER principles before every production task.
+
+Create the following 12 mandatory principle documents:
+
+1. test.md
+   Test Principles
+
+2. logs.md
+   Logging Principles
+
+3. graph.md
+   Graph and System Modeling Principles
+
+4. security.md
+   Security Principles
+
+5. business.md
+   Business Principles
+
+6. architecture.md
+   Clean Architecture and Design Pattern Principles
+
+7. ui-ux.md
+   UI/UX Principles
+
+8. git-branches.md
+   Git Branching Principles
+
+9. decisions.md
+   Technical and Architectural Decisions
+
+10. tech-stack.md
+    Technology Stack Principles
+
+11. clean-code.md
+    Clean Code Principles
+
+12. performance.md
+    Performance Principles
+
+The original project specification refers to 13 CALIPER files but explicitly identifies only 12 principles.
+
+Therefore:
+
+- Implement the 12 defined principle documents.
+- Reserve a configurable thirteenth principle slot.
+- Do not invent the missing principle.
+- Allow an administrator to define and activate it later.
+
+## CALIPER Document Structure
+
+Every principle document should support:
+
+- Purpose.
+- Scope.
+- Mandatory Rules.
+- Recommended Practices.
+- Forbidden Practices.
+- Validation Criteria.
+- Exceptions.
+- Approval Requirements.
+- Version History.
+
+## CALIPER Governance
+
+Implement version control for CALIPER.
+
+Every change must have:
+
+- Previous version.
+- Proposed version.
+- Change description.
+- Reason for change.
+- Related task.
+- Author or responsible agent.
+- Approval status.
+- Timestamp.
+
+AI agents may propose modifications.
+
+They must not silently change mandatory principles.
+
+Require explicit approval for changes to protected principles.
+
+---
+
+# 7. AI PRODUCTION AGENTS
+
+Implement four independent agent roles.
+
+Each role must be configurable to use a different provider and model.
+
+The same model may be assigned to multiple roles.
+
+## AGENT 1 — PLANNING AGENT
+
+Responsibility:
+
+Understand the user's requested task and produce an implementation plan consistent with the project's CALIPER principles.
+
+Before planning, retrieve:
+
+- Relevant CALIPER documents.
+- Project architecture.
+- Technology stack.
+- Git status.
+- Relevant source files.
+- Previous technical decisions.
+- Related task history.
+
+The Planning Agent must produce a structured implementation plan containing:
+
+1. Task understanding.
+2. Business objective.
+3. Technical objective.
+4. Relevant CALIPER principles.
+5. Existing implementation analysis.
+6. Files to be created.
+7. Files to be modified.
+8. Files that must not be modified.
+9. Implementation steps.
+10. Required tests.
+11. Security considerations.
+12. Performance considerations.
+13. Potential breaking changes.
+14. Dependencies.
+15. Acceptance criteria.
+16. Rollback considerations.
+
+The plan must be saved as a structured artifact.
+
+The plan must be reviewed for completeness before execution.
+
+## AGENT 2 — EXECUTION AGENT
+
+Responsibility:
+
+Implement the approved plan.
+
+The Execution Agent must:
+
+- Work only within the assigned workspace.
+- Work on a dedicated Git branch.
+- Read the approved plan.
+- Read relevant CALIPER principles.
+- Inspect existing implementation before modifying files.
+- Follow the existing project architecture.
+- Avoid unnecessary changes.
+- Avoid duplicated implementations.
+- Never hardcode secrets.
+- Run appropriate tests.
+- Produce a change summary.
+- Generate a Git diff.
+- Report files created, modified, or deleted.
+
+The agent must not directly modify protected production resources.
+
+Execution must happen through a controlled sandbox or authorized development environment.
+
+## AGENT 3 — REVIEW AGENT
+
+Responsibility:
+
+Independently evaluate the implementation.
+
+The Review Agent must not blindly trust the Execution Agent's report.
+
+It must inspect the actual code changes and available validation results.
+
+Review criteria:
+
+- Compliance with the approved plan.
+- Compliance with CALIPER.
+- Business correctness.
+- Architecture.
+- Code quality.
+- Security.
+- Performance.
+- Test coverage.
+- Logging.
+- Error handling.
+- Git practices.
+- Backward compatibility.
+- Unintended side effects.
+
+The Review Agent must produce a structured report.
+
+Possible decisions:
+
+ACCEPTED
+
+REJECTED
+
+NEEDS_HUMAN_APPROVAL
+
+BLOCKED
+
+Each decision must include:
+
+- Reason.
+- Evidence.
+- Violated principles.
+- Required corrections.
+- Severity.
+- Related files and line references where possible.
+
+The Review Agent must not accept a task merely because the code compiles.
+
+## AGENT 4 — DOCUMENTATION AGENT
+
+Responsibility:
+
+Document the accepted implementation.
+
+The Documentation Agent must:
+
+- Record changes.
+- Update relevant technical documentation.
+- Update architectural diagrams when necessary.
+- Record relevant decisions.
+- Update CALIPER proposals where justified.
+- Record environment changes.
+- Record dependency changes.
+- Record deployment information.
+- Produce a task completion report.
+
+The Documentation Agent must distinguish between:
+
+- Actual changes.
+- Proposed changes.
+- Approved changes.
+- Historical information.
+
+Never modify mandatory CALIPER rules without authorization.
+
+Documentation must be traceable to the task and Git commit.
+
+---
+
+# 8. PRODUCTION PIPELINE ORCHESTRATION
+
+Implement a persistent workflow engine.
+
+The pipeline must follow this sequence:
+
+USER REQUEST
+    |
+    v
+TASK CREATION
+    |
+    v
+WORKSPACE CONTEXT COLLECTION
+    |
+    v
+CALIPER PRINCIPLE LOADING
+    |
+    v
+PLANNING AGENT
+    |
+    v
+PLAN VALIDATION
+    |
+    v
+EXECUTION AGENT
+    |
+    v
+AUTOMATED QUALITY GATES
+    |
+    v
+REVIEW AGENT
+    |
+    +----------------------+
+    |                      |
+    v                      v
+  ACCEPTED               REJECTED
+    |                      |
+    v                      v
+DOCUMENTATION          RETURN TO PLANNING
+    |                      |
+    v                      v
+RELEASE PREPARATION    REVISED PLAN
+    |
+    v
+HUMAN APPROVAL
+    |
+    v
+OPTIONAL DEPLOYMENT
+    |
+    v
+TASK COMPLETED
+
+## Rejection and Retry Logic
+
+When the Review Agent rejects a task:
+
+1. Save the review report.
+2. Preserve the execution artifacts.
+3. Send the rejection report to the Planning Agent.
+4. Generate a revised plan.
+5. Execute the revised plan.
+6. Run validation again.
+7. Request another review.
+
+Implement configurable maximum retry limits.
+
+Never create infinite execution loops.
+
+Allow human intervention at any stage.
+
+## Task States
+
+Implement persistent states such as:
+
+- CREATED
+- CONTEXT_COLLECTION
+- PLANNING
+- PLAN_REVIEW
+- READY_FOR_EXECUTION
+- EXECUTING
+- AUTOMATED_VALIDATION
+- AI_REVIEW
+- REJECTED
+- REPLANNING
+- DOCUMENTATION
+- AWAITING_APPROVAL
+- RELEASE_READY
+- DEPLOYING
+- COMPLETED
+- FAILED
+- CANCELLED
+- BLOCKED
+
+Every state transition must be recorded.
+
+The workflow must survive application restarts.
+
+Do not depend on in-memory state for task persistence.
+
+---
+
+# 9. AUTOMATED QUALITY GATE ENGINE
+
+This component is essential.
+
+AI review alone is insufficient.
+
+Implement deterministic validation mechanisms.
+
+Depending on the project's technology stack, support:
+
+- Unit tests.
+- Integration tests.
+- End-to-end tests.
+- Linting.
+- Formatting.
+- Static analysis.
+- Type checking.
+- Dependency vulnerability scanning.
+- Secret scanning.
+- Container image scanning.
+- Build verification.
+- Configuration validation.
+- API contract validation.
+- Performance checks where configured.
+
+The system must discover or configure appropriate validation commands for each project.
+
+Never assume every project uses the same programming language or testing framework.
+
+## Quality Gate Decisions
+
+Each gate must return:
+
+- PASSED
+- FAILED
+- WARNING
+- NOT_CONFIGURED
+- SKIPPED
+
+Configure mandatory and optional gates per project.
+
+A failed mandatory gate must prevent automatic acceptance.
+
+Warnings must be visible in the review report.
+
+Never claim a security scan was completed if the required scanner was unavailable.
+
+---
+
+# 10. TASK MANAGEMENT INTERFACE
+
+Build a complete web interface.
+
+The interface must be modern, professional, responsive, and suitable for an enterprise software engineering environment.
+
+Use a clear dashboard layout.
+
+Required pages:
+
+## A. Main Dashboard
+
+Display:
+
+- Total projects.
+- Active tasks.
+- Completed tasks.
+- Failed tasks.
+- Tasks awaiting approval.
+- Provider availability.
+- Recent activity.
+- Pipeline execution status.
+- Quality gate statistics.
+
+## B. Projects
+
+Allow users to:
+
+- Create projects.
+- Edit projects.
+- Archive projects.
+- Configure workspaces.
+- Connect GitHub repositories.
+- Configure development environments.
+- Register production environments.
+- Access CALIPER.
+
+## C. Task Creation
+
+Allow the user to:
+
+1. Select a project.
+2. Enter the task description.
+3. Select the Planning model.
+4. Select the Execution model.
+5. Select the Review model.
+6. Select the Documentation model.
+7. Configure retry limits.
+8. Configure validation requirements.
+9. Submit the task.
+
+Allow a default configuration to be saved for each project.
+
+Do not force users to select a model every time if a valid project default exists.
+
+## D. Live Task Monitoring
+
+Display:
+
+- Current pipeline stage.
+- Active agent.
+- Selected model.
+- Provider.
+- Current activity.
+- Execution duration.
+- Logs.
+- Errors.
+- Retry count.
+- Review status.
+- Quality gate results.
+
+Provide access to:
+
+- Planning report.
+- Execution report.
+- Git diff.
+- Review report.
+- Documentation report.
+
+## E. CALIPER Management
+
+Provide a document editor.
+
+Allow authorized users to:
+
+- Read principles.
+- Edit principles.
+- View versions.
+- Compare versions.
+- Review AI-generated proposals.
+- Approve or reject changes.
+
+## F. Provider Management
+
+Provide a provider configuration and health dashboard.
+
+## G. Environment Management
+
+Provide separate development and production environment management pages.
+
+## H. Audit Logs
+
+Provide searchable audit logs for:
+
+- User actions.
+- Agent executions.
+- Provider requests.
+- Repository operations.
+- Environment operations.
+- CALIPER modifications.
+- Approvals.
+- Deployment actions.
+
+---
+
+# 11. GIT INTEGRATION
+
+Implement safe Git operations.
+
+Every task must have its own branch.
+
+Suggested naming:
+
+hcaliper/task-{task-id}
+
+Before execution:
+
+- Check the repository state.
+- Identify uncommitted user changes.
+- Never overwrite or discard user changes.
+- Ensure the task branch is isolated.
+- Record the base commit.
+
+After execution:
+
+- Generate a diff.
+- Validate the changes.
+- Record commit information.
+- Preserve rejected execution artifacts.
+
+Do not automatically merge into the default branch.
+
+Support GitHub Pull Request creation where configured.
+
+Merging requires an authorized approval process.
+
+---
+
+# 12. SECURITY ARCHITECTURE
+
+Security must be implemented from the beginning.
+
+Mandatory requirements:
+
+1. Authentication.
+2. Role-based access control.
+3. Project-level authorization.
+4. Encrypted credentials.
+5. Secure secret management.
+6. Input validation.
+7. Audit logging.
+8. Secure session management.
+9. Protection against command injection.
+10. Protection against path traversal.
+11. Protection against SSRF.
+12. Rate limiting.
+13. Network access restrictions.
+14. Isolated task execution.
+15. Controlled terminal access.
+16. Least-privilege access.
+
+## Production Protection
+
+Production access must be denied by default.
+
+Require explicit configuration and approval.
+
+The system must never allow an AI-generated command to execute against production merely because the model requested it.
+
+## Network Security
+
+Providers hosted on the local network must use configurable addresses.
+
+Do not hardcode private IP addresses.
+
+Validate configured provider endpoints and restrict outbound connections to authorized destinations.
+
+## Credentials
+
+Never:
+
+- Commit secrets.
+- Print API keys in logs.
+- Return secrets to frontend clients.
+- Store passwords in plain text.
+- Include credentials in AI prompts unnecessarily.
+
+Implement credential rotation support where practical.
+
+---
+
+# 13. DATABASE AND PERSISTENCE
+
+Design a normalized database schema.
+
+At minimum, implement entities for:
+
+- Users.
+- Roles.
+- Permissions.
+- Projects.
+- Workspaces.
+- Repository connections.
+- Environments.
+- Providers.
+- Provider models.
+- Agent configurations.
+- CALIPER documents.
+- CALIPER versions.
+- CALIPER proposals.
+- Tasks.
+- Task executions.
+- Pipeline stages.
+- Agent execution records.
+- Plans.
+- Reviews.
+- Quality gate results.
+- Git operations.
+- Artifacts.
+- Documentation records.
+- Approvals.
+- Audit logs.
+- Notifications.
+
+Use database migrations.
+
+Implement appropriate indexes, foreign keys, constraints, and transaction boundaries.
+
+All important workflow information must be persistent.
+
+Do not rely on JSON files as the primary database.
+
+---
+
+# 14. OBSERVABILITY AND LOGGING
+
+Implement structured logging.
+
+Track:
+
+- Task ID.
+- Project ID.
+- Workspace ID.
+- Agent role.
+- Provider.
+- Model.
+- Execution duration.
+- Request status.
+- Error category.
+- Retry count.
+- Pipeline stage.
+
+Sensitive information must be redacted.
+
+Support configurable log retention.
+
+Provide health checks for:
+
+- Application.
+- Database.
+- Background workers.
+- AI providers.
+- Storage.
+- Development environments.
+
+Provide an operational status dashboard.
+
+---
+
+# 15. DEPLOYMENT AND INFRASTRUCTURE
+
+The application must be deployable on a Linux server.
+
+Prefer a containerized architecture.
+
+Provide:
+
+- Dockerfiles.
+- Docker Compose configuration.
+- Environment configuration templates.
+- Database migrations.
+- Persistent volumes.
+- Health checks.
+- Restart policies.
+- Backup instructions.
+- Restore instructions.
+- Reverse proxy configuration.
+- HTTPS deployment instructions.
+
+Use separate services where justified:
+
+- Frontend.
+- Backend API.
+- Database.
+- Background workers.
+- Task execution workers.
+- Cache or message broker if required.
+
+Choose technologies based on maintainability, reliability, security, and integration requirements.
+
+Do not introduce unnecessary infrastructure.
+
+Do not assume the server has unlimited resources.
+
+The factory must be capable of operating with a modest initial deployment and scaling later.
+
+---
+
+# 16. REQUIRED TECHNOLOGY DECISIONS
+
+You are responsible for choosing the implementation stack.
+
+Before implementation:
+
+1. Inspect the server.
+2. Inspect available resources.
+3. Inspect installed software.
+4. Inspect available AI tools.
+5. Inspect network connectivity.
+6. Verify provider integration possibilities.
+
+Choose a suitable backend, frontend, database, job queue, and execution architecture.
+
+Document your choices and explain why they were selected.
+
+Do not spend excessive time debating alternatives.
+
+Choose a practical architecture and implement it.
+
+---
+
+# 17. OPERATIONAL REQUIREMENTS
+
+The finished factory must support the following complete scenario:
+
+1. An administrator logs into H-Caliper.
+2. The administrator registers a software project.
+3. The administrator connects its GitHub repository.
+4. The administrator configures development access.
+5. The administrator registers production metadata and deployment permissions.
+6. The administrator configures CALIPER principles.
+7. The administrator connects available AI providers.
+8. The administrator assigns models to agent roles.
+9. A user selects the project.
+10. The user submits a development task.
+11. The Planning Agent analyzes the project.
+12. The Planning Agent generates a plan.
+13. The Execution Agent implements the plan.
+14. The system runs automated validation.
+15. The Review Agent evaluates the implementation.
+16. Rejected implementations return to planning.
+17. Accepted implementations move to documentation.
+18. The Documentation Agent records the changes.
+19. The factory generates a complete task report.
+20. The user reviews the final changes.
+21. An authorized user approves merging or deployment.
+22. The factory records the final result.
+
+This scenario must work end to end.
+
+---
+
+# 18. DEVELOPMENT EXECUTION STRATEGY
+
+Do not attempt to build everything as disconnected files in one unverified operation.
+
+Work in controlled implementation phases.
+
+## Phase 0 — Environment Discovery
+
+Inspect:
+
+- Operating system.
+- CPU and RAM.
+- Disk capacity.
+- Network configuration.
+- Installed Docker version.
+- Git version.
+- Existing services.
+- Available AI provider installations.
+- Available ports.
+- Existing projects and directories.
+
+Do not overwrite existing services or data.
+
+Produce an environment assessment.
+
+## Phase 1 — Architecture and Foundation
+
+Implement:
+
+- Application structure.
+- Database.
+- Authentication.
+- Authorization.
+- Core backend.
+- Frontend foundation.
+- Configuration management.
+- Logging.
+
+## Phase 2 — Workspace Management
+
+Implement:
+
+- Projects.
+- GitHub connections.
+- Development environments.
+- Production environment registration.
+- Workspace isolation.
+- CALIPER management.
+
+## Phase 3 — AI Provider Layer
+
+Implement and test each provider adapter independently.
+
+Create provider health checks and capability discovery.
+
+Do not mark an adapter operational until it passes a real connectivity test.
+
+## Phase 4 — Agent Orchestration
+
+Implement the four agents.
+
+Implement model assignment.
+
+Implement context collection.
+
+Implement structured agent outputs.
+
+## Phase 5 — Production Pipeline
+
+Implement persistent task workflows.
+
+Implement retry logic.
+
+Implement task monitoring.
+
+Implement cancellation and recovery.
+
+## Phase 6 — Quality Assurance
+
+Implement automated quality gates.
+
+Implement review evidence.
+
+Implement Git diff inspection.
+
+Implement acceptance rules.
+
+## Phase 7 — Documentation and Audit
+
+Implement documentation workflows.
+
+Implement CALIPER proposals and approvals.
+
+Implement complete task history.
+
+## Phase 8 — Deployment and Final Verification
+
+Deploy the application.
+
+Run integration tests.
+
+Run end-to-end tests.
+
+Verify the operational scenario described in Section 17.
+
+Produce the final delivery report.
+
+---
+
+# 19. TESTING REQUIREMENTS
+
+You must write and execute tests.
+
+At minimum:
+
+- Unit tests.
+- API tests.
+- Database tests.
+- Provider adapter tests.
+- Workspace isolation tests.
+- Authorization tests.
+- Git integration tests.
+- Pipeline state transition tests.
+- Retry and failure recovery tests.
+- CALIPER versioning tests.
+- Quality gate tests.
+- End-to-end workflow tests.
+
+Use mock providers for automated testing where appropriate.
+
+However, mocks must not be presented as proof of real provider connectivity.
+
+Perform real integration tests for each provider that is actually available and configured.
+
+Report unavailable providers honestly.
+
+---
+
+# 20. DELIVERY REQUIREMENTS
+
+At completion, provide:
+
+1. Fully implemented source code.
+2. Working frontend.
+3. Working backend.
+4. Database schema and migrations.
+5. Docker deployment files.
+6. Configuration templates.
+7. Provider integration documentation.
+8. CALIPER template files.
+9. API documentation.
+10. User manual.
+11. Administrator manual.
+12. Security documentation.
+13. Backup and recovery instructions.
+14. Test reports.
+15. Deployment instructions.
+16. Known limitations.
+17. Future improvement roadmap.
+
+Create a README containing exact installation and startup commands.
+
+The application must have an initial administrator setup procedure.
+
+Do not hardcode an administrator password.
+
+---
+
+# 21. DEFINITION OF DONE
+
+H-Caliper is considered ready for initial operational use only when:
+
+- The application starts successfully.
+- Authentication works.
+- Project creation works.
+- Workspace isolation works.
+- GitHub integration has been tested.
+- CALIPER documents can be managed.
+- Provider configuration works.
+- At least one real AI provider can execute a task.
+- Different models can be assigned to different agent roles.
+- Planning works.
+- Execution works inside an isolated development environment.
+- Automated validation works.
+- Review works.
+- Rejection and replanning work.
+- Documentation works.
+- Task history persists after restart.
+- Audit logs work.
+- Production access is protected.
+- The complete operational scenario passes end-to-end testing.
+
+If a provider is unavailable, the factory must still work with the available providers.
+
+If a feature cannot be completed because of an external dependency, implement the appropriate adapter interface, document the limitation, and clearly identify it as NOT CONFIGURED or NOT VERIFIED.
+
+Never claim that an incomplete feature is operational.
+
+---
+
+# 22. ENGINEERING RULES FOR YOUR OWN IMPLEMENTATION
+
+While building H-Caliper, you must follow the same engineering philosophy that the factory itself will enforce.
+
+- Use clean architecture.
+- Use maintainable code.
+- Avoid unnecessary complexity.
+- Follow secure coding practices.
+- Write meaningful tests.
+- Document architectural decisions.
+- Use meaningful Git commits.
+- Avoid placeholder implementations.
+- Avoid fake API integrations.
+- Avoid non-functional buttons.
+- Avoid hardcoded configuration.
+- Avoid duplicated business logic.
+- Avoid unnecessary dependencies.
+- Keep modules independently testable.
+- Handle failures explicitly.
+- Preserve existing server data.
+
+Do not stop after creating a plan.
+
+Do not stop after creating the UI.
+
+Do not stop after creating database tables.
+
+Continue until the operational acceptance criteria have been met, subject to available access and resources.
+
+If you encounter a blocker, investigate it, attempt a safe resolution, and document the remaining limitation.
+
+Do not perform destructive operations without explicit authorization.
+
+---
+
+# 23. FINAL EXECUTION INSTRUCTION
+
+Begin by inspecting the actual server and its existing environment.
+
+Then produce a short architecture and implementation plan.
+
+After that, immediately begin implementation.
+
+Make reasonable engineering decisions independently.
+
+Ask questions only when an essential decision cannot be safely inferred.
+
+Do not ask the user to approve every minor implementation decision.
+
+Preserve the ability to change providers, models, project configurations, and CALIPER principles without changing the factory's core architecture.
+
+Your final objective is:
+
+**Build H-CALIPER as a real, operational, extensible software production factory that transforms natural-language software tasks into standardized, validated, reviewed, documented, and traceable software changes — regardless of which AI model performs the work.**
+
+Start now.
